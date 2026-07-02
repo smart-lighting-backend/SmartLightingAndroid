@@ -125,9 +125,13 @@ async function handleLogin() {
       }
       if (!token) throw new Error('未收到有效 Token')
     } catch (apiErr) {
-      // ② 网络不通（后端未启动）→ Mock 降级；业务错误（密码错误）→ 直接抛出
-      const isNetworkErr = !apiErr?.response && !apiErr?.bizCode
-      if (isNetworkErr) {
+      // ② 判断"后端不可用"：网络连接失败 或 服务器 5xx 错误 → Mock 降级
+      //    业务错误（401 密码错误、400 参数错误）→ 直接抛出显示给用户
+      const httpStatus   = apiErr?.response?.status
+      const isNetworkErr = !apiErr?.response && !apiErr?.bizCode   // 完全无法连接
+      const isServerErr  = httpStatus != null && httpStatus >= 500 // 服务器内部错误
+      if (isNetworkErr || isServerErr) {
+        console.warn('[Login] 后端不可用，使用 Mock 降级登录', apiErr?.message)
         const mock = mockLogin(form.username)
         token    = mock.token
         userInfo = mock.userInfo
