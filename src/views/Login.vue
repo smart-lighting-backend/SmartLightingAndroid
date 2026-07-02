@@ -105,19 +105,16 @@ let cleanupCanvas = null
 onMounted(() => { cleanupCanvas = initCanvas() })
 onUnmounted(() => { cleanupCanvas?.() })
 
-// ─── Mock 账号（后端未启动时使用，对接真实接口后可移除） ────────────────────
-const MOCK_USERS = [
-  { username: 'admin',        password: 'admin123',   role: 'system_admin',  label: '系统管理员' },
-  { username: 'light_admin',  password: 'admin123',   role: 'light_admin',   label: '路灯管理员' },
-  { username: 'viewer',       password: 'viewer123',  role: 'viewer',        label: '数据查看员' },
-]
-
-function mockLogin(username, password) {
-  const user = MOCK_USERS.find(u => u.username === username && u.password === password)
-  if (!user) throw new Error('用户名或密码错误')
+// ─── Mock 登录（后端未启动时使用，对接真实接口后可移除） ───────────────────
+// 开发模式下接受任意非空账号密码，免去记忆测试账号的麻烦
+function mockLogin(username) {
   return {
-    token: `mock-token-${user.role}-${Date.now()}`,
-    userInfo: { username: user.username, role: user.role, roleName: user.label },
+    token: `mock-token-dev-${Date.now()}`,
+    userInfo: {
+      username,
+      role: 'system_admin',
+      roleName: '系统管理员（Mock）',
+    },
   }
 }
 
@@ -141,7 +138,7 @@ async function handleLogin() {
       // ② 后端不可用（网络错误 / 超时）时自动降级到 Mock 登录
       const isNetworkErr = !apiErr?.response   // 无 response 说明请求未到达服务器
       if (isNetworkErr) {
-        const mock = mockLogin(form.username, form.password)
+        const mock = mockLogin(form.username)
         token    = mock.token
         userInfo = mock.userInfo
       } else {
