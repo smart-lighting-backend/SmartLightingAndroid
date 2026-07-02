@@ -272,8 +272,7 @@ function handleKeydown(e) {
           <span v-else class="btn-spinner" />
         </button>
 
-        <!-- 底部版权 -->
-        <p class="login-footer">© 2024 智慧城市管控平台 v2.1.0</p>
+
       </div>
     </div>
   </div>
