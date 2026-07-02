@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 *,
 *::before,
 *::after {
@@ -10,12 +12,38 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #1a1a2e;
+  background: #050d1a;
   color: #e0e0e0;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 #app {
   width: 100%;
   height: 100%;
+}
+
+/* 全局滚动条 */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 150, 220, 0.25);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(77, 208, 225, 0.4);
+}
+
+/* 全局按钮 reset */
+button {
+  font-family: inherit;
+}
+
+/* 全局输入 reset */
+input, textarea {
+  font-family: inherit;
 }
