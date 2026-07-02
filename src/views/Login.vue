@@ -137,7 +137,7 @@ async function handleLogin() {
     }
 
     saveAuth(token, userInfo, form.remember)
-    const redirect = route.query.redirect || '/digital-twin'
+    const redirect = route.query.redirect || '/dashboard'
     router.push(redirect)
   } catch (err) {
     // err.message 来自 request.js 业务错误拦截 或 后端 HTTP 错误
