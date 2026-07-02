@@ -5,7 +5,7 @@
  * - beforeEach 守卫：检查 Token
  */
 import { createRouter, createWebHistory } from 'vue-router'
-import { getToken, clearAuth } from '../api/auth.js'
+import { getToken, clearAuth, saveAuth, getUserInfo, fetchCurrentUser } from '../api/auth.js'
 
 // ─── 路由定义 ─────────────────────────────────────────────────────────────
 const routes = [
@@ -89,7 +89,7 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const token = getToken()
 
-  // 公开路由直接放行；已登录时访问 /login 自动跳转
+  // 公开路由：已登录时访问 /login 自动跳转
   if (to.meta.public) {
     if (token && to.path === '/login') {
       return next('/digital-twin')
@@ -102,7 +102,27 @@ router.beforeEach(async (to, from, next) => {
     return next({ path: '/login', query: { redirect: to.fullPath } })
   }
 
+  // ── 调用 GET /api/auth/me 校验 Token（仅登录后首次进入主页时）──
+  // Mock Token 跳过；普通 Token 在从 /login 跳入时做一次有效性校验
+  const isMock = token.startsWith('mock-token-dev-')
+  if (!isMock && from.path === '/login') {
+    try {
+      const res = await fetchCurrentUser()
+      // 刷新本地缓存的用户信息
+      if (res?.data) {
+        const fresh = { username: res.data.username, roleCode: res.data.roleCode }
+        const inLocal = !!localStorage.getItem('smart_light_token')
+        saveAuth(token, fresh, inLocal)
+      }
+    } catch {
+      // Token 已失效（401 已由 request.js 拦截跳转，此处兜底处理）
+      clearAuth()
+      return next({ path: '/login', query: { redirect: to.fullPath } })
+    }
+  }
+
   return next()
 })
 
 export default router
+

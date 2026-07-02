@@ -1,7 +1,9 @@
 /**
  * Axios 请求封装
+ * 统一响应格式: { code, msg, data }
  * - 自动附加 Authorization: Bearer <token>
- * - 响应 401 时自动跳回登录页
+ * - HTTP 401 → 清除 Token 并跳回登录页
+ * - 业务 code ≠ 200 → 抛出带 msg 的 Error，让调用方统一处理
  */
 import axios from 'axios'
 import { getToken, clearAuth } from './auth.js'
@@ -11,7 +13,7 @@ const request = axios.create({
   timeout: 10000,
 })
 
-// ─── 请求拦截器：注入 Token ───────────────────────────────────────────────
+// ─── 请求拦截器：注入 Bearer Token ────────────────────────────────────────
 request.interceptors.request.use(
   config => {
     const token = getToken()
@@ -23,13 +25,25 @@ request.interceptors.request.use(
   error => Promise.reject(error)
 )
 
-// ─── 响应拦截器：处理 401 ─────────────────────────────────────────────────
+// ─── 响应拦截器 ────────────────────────────────────────────────────────────
 request.interceptors.response.use(
-  response => response.data,
+  response => {
+    const res = response.data  // 取 HTTP body: { code, msg, data }
+
+    // 业务层错误（HTTP 200 但 code ≠ 200）
+    if (res && typeof res.code === 'number' && res.code !== 200) {
+      const err = new Error(res.msg || '请求失败')
+      err.bizCode = res.code
+      err.bizData = res.data
+      return Promise.reject(err)
+    }
+
+    // 正常：返回 { code, msg, data } 原始对象，调用方按需解包
+    return res
+  },
   error => {
     if (error.response?.status === 401) {
       clearAuth()
-      // 避免循环引用，直接使用 window.location 跳转
       window.location.href = '/login'
     }
     return Promise.reject(error)
