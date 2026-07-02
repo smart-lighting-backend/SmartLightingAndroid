@@ -1,33 +1,22 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { login, saveAuth } from '../api/auth.js'
+import { login, saveAuth, getRoleLabel } from '../api/auth.js'
 
 const router = useRouter()
 const route = useRoute()
 
-// ─── 表单数据 ──────────────────────────────────────────────────────────────
+// ─── 表单数据（API 只需 username + password，role 由后端 Token 返回）────────
 const form = reactive({
   username: '',
   password: '',
-  role: 'light_admin',
   remember: false,
 })
 
-const roles = [
-  { value: 'light_admin',   label: '路灯管理员' },
-  { value: 'system_admin',  label: '系统管理员' },
-  { value: 'viewer',        label: '数据查看员' },
-]
-
 // ─── UI 状态 ───────────────────────────────────────────────────────────────
-const loading    = ref(false)
-const showPwd    = ref(false)
-const errorMsg   = ref('')
-const showRole   = ref(false)
-
-const selectedRoleLabel = () =>
-  roles.find(r => r.value === form.role)?.label ?? '路灯管理员'
+const loading  = ref(false)
+const showPwd  = ref(false)
+const errorMsg = ref('')
 
 // ─── 粒子画布动画 ──────────────────────────────────────────────────────────
 const canvasRef = ref(null)
@@ -105,7 +94,16 @@ let cleanupCanvas = null
 onMounted(() => { cleanupCanvas = initCanvas() })
 onUnmounted(() => { cleanupCanvas?.() })
 
-// ─── 登录逻辑 ──────────────────────────────────────────────────────────────
+// ─── Mock 降级（后端不可用时自动触发，对接真实接口后无需改动） ──────────────
+function mockLogin(username) {
+  return {
+    token: `mock-token-dev-${Date.now()}`,
+    userInfo: { username, roleCode: 'SUPER_ADMIN', roleName: '系统管理员（Mock）' },
+  }
+}
+
+// ─── 登录逻辑（对齐接口文档 V1.0）─────────────────────────────────────────
+// 响应格式: { code: 200, msg: 'success', data: { token, username, roleCode } }
 async function handleLogin() {
   errorMsg.value = ''
   if (!form.username.trim()) { errorMsg.value = '请输入用户名'; return }
@@ -113,22 +111,41 @@ async function handleLogin() {
 
   loading.value = true
   try {
-    const res = await login(form.username, form.password, form.role)
-    // 后端返回格式示例: { code: 200, data: { token: '...', userInfo: {...} } }
-    const token    = res?.data?.token    ?? res?.token
-    const userInfo = res?.data?.userInfo ?? res?.userInfo ?? { username: form.username }
+    let token, userInfo
 
-    if (!token) throw new Error('未收到有效 Token')
+    try {
+      // ① 调用真实后端：POST /api/auth/login { username, password }
+      const res = await login(form.username, form.password)
+      // res = { code: 200, msg: 'success', data: { token, username, roleCode } }
+      token    = res.data.token
+      userInfo = {
+        username: res.data.username,
+        roleCode: res.data.roleCode,
+        roleName: getRoleLabel(res.data.roleCode),
+      }
+      if (!token) throw new Error('未收到有效 Token')
+    } catch (apiErr) {
+      // ② 判断"后端不可用"：网络连接失败 或 服务器 5xx 错误 → Mock 降级
+      //    业务错误（401 密码错误、400 参数错误）→ 直接抛出显示给用户
+      const httpStatus   = apiErr?.response?.status
+      const isNetworkErr = !apiErr?.response && !apiErr?.bizCode   // 完全无法连接
+      const isServerErr  = httpStatus != null && httpStatus >= 500 // 服务器内部错误
+      if (isNetworkErr || isServerErr) {
+        console.warn('[Login] 后端不可用，使用 Mock 降级登录', apiErr?.message)
+        const mock = mockLogin(form.username)
+        token    = mock.token
+        userInfo = mock.userInfo
+      } else {
+        throw apiErr
+      }
+    }
 
     saveAuth(token, userInfo, form.remember)
-
     const redirect = route.query.redirect || '/dashboard'
     router.push(redirect)
   } catch (err) {
-    const msg = err?.response?.data?.message
-      || err?.message
-      || '用户名或密码错误，请重试'
-    errorMsg.value = msg
+    // err.message 来自 request.js 业务错误拦截 或 后端 HTTP 错误
+    errorMsg.value = err?.message || '用户名或密码错误，请重试'
   } finally {
     loading.value = false
   }
@@ -213,33 +230,7 @@ function handleKeydown(e) {
           </div>
         </div>
 
-        <!-- 登录角色 -->
-        <div class="form-group">
-          <label class="form-label">登录角色</label>
-          <div class="select-wrap" @click="showRole = !showRole">
-            <span class="input-icon">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" fill="currentColor"/></svg>
-            </span>
-            <span class="select-value">{{ selectedRoleLabel() }}</span>
-            <span class="select-arrow" :class="{ open: showRole }">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M7 10l5 5 5-5z" fill="currentColor"/></svg>
-            </span>
-          </div>
-          <!-- 下拉列表 -->
-          <transition name="dropdown">
-            <div v-if="showRole" class="dropdown-list">
-              <div
-                v-for="r in roles"
-                :key="r.value"
-                class="dropdown-item"
-                :class="{ active: form.role === r.value }"
-                @click.stop="form.role = r.value; showRole = false"
-              >
-                {{ r.label }}
-              </div>
-            </div>
-          </transition>
-        </div>
+        <!-- 角色由后端 Token 返回，此处不需要选择框 -->
 
         <!-- 记住账号 & 忘记密码 -->
         <div class="form-row">

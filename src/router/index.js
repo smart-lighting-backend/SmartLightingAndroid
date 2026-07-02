@@ -1,14 +1,12 @@
 /**
  * Vue Router 配置
- * - /login   公开路由
- * - /dashboard、/devices 等需要登录
- * - beforeEach 守卫：检查 Token 并可选调用后端校验接口
+ * - /login          公开路由
+ * - /dashboard 等需要登录 → 使用 MainLayout 布局
+ * - beforeEach 守卫：检查 Token 是否存在
  */
 import { createRouter, createWebHistory } from 'vue-router'
-import { getToken, clearAuth } from '../api/auth.js'
-import request from '../api/request.js'
+import { getToken, clearAuth, saveAuth, fetchCurrentUser } from '../api/auth.js'
 
-// ─── 路由定义 ─────────────────────────────────────────────────────────────
 const routes = [
   {
     path: '/',
@@ -20,18 +18,67 @@ const routes = [
     component: () => import('../views/Login.vue'),
     meta: { public: true },
   },
+  // ── 登录后主布局 ─────────────────────────────────────────────────────────
   {
-    path: '/dashboard',
-    name: 'Dashboard',
-    component: () => import('../views/HomeView.vue'),
-    meta: { requiresAuth: true, title: '控制台' },
-  },
-  {
-    path: '/devices',
-    name: 'Devices',
-    // 占位页面，后续开发
-    component: () => import('../views/HomeView.vue'),
-    meta: { requiresAuth: true, title: '设备管理' },
+    path: '/',
+    component: () => import('../layouts/MainLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'dashboard',
+        name: 'Dashboard',
+        component: () => import('../views/Dashboard.vue'),
+        meta: { title: '数字孪生' },
+      },
+      {
+        path: 'devices',
+        name: 'Devices',
+        component: () => import('../views/Devices.vue'),
+        meta: { title: '设备管理' },
+      },
+      {
+        path: 'devices/:id',
+        name: 'DeviceDetail',
+        component: () => import('../views/DeviceDetail.vue'),
+        meta: { title: '设备详情' },
+      },
+      {
+        path: 'analytics',
+        name: 'Analytics',
+        component: () => import('../views/Analytics.vue'),
+        meta: { title: '数据报表' },
+      },
+      {
+        path: 'warning',
+        name: 'Warning',
+        component: () => import('../views/Warning.vue'),
+        meta: { title: '告警中心' },
+      },
+      {
+        path: 'strategy',
+        name: 'Strategy',
+        component: () => import('../views/Strategy.vue'),
+        meta: { title: '策略配置' },
+      },
+      {
+        path: 'strategy/create',
+        name: 'StrategyCreate',
+        component: () => import('../views/StrategyCreate.vue'),
+        meta: { title: '新建策略' },
+      },
+      {
+        path: 'assistant',
+        name: 'AIAssistant',
+        component: () => import('../views/AIAssistant.vue'),
+        meta: { title: '智能助手' },
+      },
+      {
+        path: 'logs',
+        name: 'SystemLog',
+        component: () => import('../views/SystemLog.vue'),
+        meta: { title: '系统日志' },
+      },
+    ],
   },
   {
     path: '/:pathMatch(.*)*',
@@ -48,26 +95,29 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const token = getToken()
 
-  // 公开路由直接放行；已登录时访问 /login 自动跳转到 dashboard
   if (to.meta.public) {
-    if (token && to.path === '/login') {
-      return next('/dashboard')
-    }
+    if (token && to.path === '/login') return next('/dashboard')
     return next()
   }
 
-  // 受保护路由：无 Token 直接拦截
   if (!token) {
     return next({ path: '/login', query: { redirect: to.fullPath } })
   }
 
-  // 可选：调用后端接口验证 Token 有效性（取消注释即可启用）
-  // try {
-  //   await request.get('/api/auth/check')
-  // } catch {
-  //   clearAuth()
-  //   return next({ path: '/login', query: { redirect: to.fullPath } })
-  // }
+  const isMock = token.startsWith('mock-token-dev-')
+  if (!isMock && from.path === '/login') {
+    try {
+      const res = await fetchCurrentUser()
+      if (res?.data) {
+        const fresh = { username: res.data.username, roleCode: res.data.roleCode }
+        const inLocal = !!localStorage.getItem('smart_light_token')
+        saveAuth(token, fresh, inLocal)
+      }
+    } catch {
+      clearAuth()
+      return next({ path: '/login', query: { redirect: to.fullPath } })
+    }
+  }
 
   return next()
 })
