@@ -97,10 +97,20 @@ export function fetchTelemetryHistory(params) {
         code: 200,
         msg: 'success',
         data: {
-          list:  (res.data?.records || []).map(r => ({
-            ...r,
-            time: r.collectedAt ? String(r.collectedAt).replace('T', ' ') : '--'
-          })),
+          list:  (res.data?.records || []).map(r => {
+            let formattedTime = '--'
+            if (Array.isArray(r.collectedAt) && r.collectedAt.length >= 2) {
+              const year = r.collectedAt[0]
+              const month = String(r.collectedAt[1]).padStart(2, '0')
+              formattedTime = `${year}-${month}`
+            } else if (typeof r.collectedAt === 'string') {
+              formattedTime = r.collectedAt.substring(0, 7) // e.g. 2026-07
+            }
+            return {
+              ...r,
+              time: formattedTime
+            }
+          }),
           total: res.data?.total || 0,
         }
       }
