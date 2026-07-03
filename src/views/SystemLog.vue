@@ -1,23 +1,33 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { getSystemLogs } from '../api/log.js'
+import { ElMessage } from 'element-plus'
 
-const MOCK_LOGS = [
-  { id: 1, time: '2023-10-27 14:32:10', level: 'error',  user: '系统',     action: '设备 SL-ND-102 断线告警触发，自动发送通知' },
-  { id: 2, time: '2023-10-27 14:31:05', level: 'info',   user: 'admin',   action: '手动下发指令：设备 SL-ND-084 亮度调整至 75%' },
-  { id: 3, time: '2023-10-27 12:15:22', level: 'warn',   user: '系统',     action: '设备 SL-ND-102 心跳包连续3次丢失' },
-  { id: 4, time: '2023-10-27 08:00:00', level: 'info',   user: '系统',     action: '策略「深夜节能模式」执行结束，已恢复标准亮度' },
-  { id: 5, time: '2023-10-26 23:00:00', level: 'info',   user: '系统',     action: '策略「深夜节能模式」触发，设备组亮度调降至 30%' },
-  { id: 6, time: '2023-10-26 18:40:11', level: 'warn',   user: '系统',     action: '摄像头视场遮挡告警：SL-ND-200，已自动标记' },
-  { id: 7, time: '2023-10-26 15:22:33', level: 'info',   user: 'zhang_g', action: '处理告警 ALM-20231027-002，标记为"处理中"' },
-  { id: 8, time: '2023-10-26 10:00:00', level: 'info',   user: 'admin',   action: '新建策略配置「雨雾增亮补偿」' },
-  { id: 9, time: '2023-10-25 22:08:33', level: 'error',  user: '系统',     action: '设备 SL-ND-412 驱动板过热，触发降功率保护' },
-  { id:10, time: '2023-10-25 09:00:00', level: 'info',   user: 'admin',   action: '系统管理员登录，IP: 192.168.1.100' },
-]
-
-const logs = ref(MOCK_LOGS)
+const logs = ref([])
 const levelFilter = ref('全部')
 const levels = ['全部', 'info', 'warn', 'error']
 const levelLabels = { info: '信息', warn: '警告', error: '错误' }
+const loading = ref(false)
+
+const loadLogs = async () => {
+  loading.value = true
+  try {
+    const res = await getSystemLogs(1, 100) // fetch latest 100 logs
+    if (res.code === 200) {
+      logs.value = res.data.list
+    } else {
+      ElMessage.error(res.message || '获取系统日志失败')
+    }
+  } catch (e) {
+    ElMessage.error('网络错误')
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadLogs()
+})
 
 const filtered = () => levelFilter.value === '全部' ? logs.value : logs.value.filter(l => l.level === levelFilter.value)
 </script>

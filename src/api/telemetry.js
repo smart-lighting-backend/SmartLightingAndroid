@@ -97,9 +97,12 @@ export function fetchTelemetryHistory(params) {
         code: 200,
         msg: 'success',
         data: {
-          list:  res.data?.records || [],
+          list:  (res.data?.records || []).map(r => ({
+            ...r,
+            time: r.collectedAt ? String(r.collectedAt).replace('T', ' ') : '--'
+          })),
           total: res.data?.total || 0,
-        },
+        }
       }
     },
     { list: genHistoryMock(deviceId, timeRange), total: 24 },
