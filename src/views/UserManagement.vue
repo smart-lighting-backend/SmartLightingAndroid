@@ -1,0 +1,297 @@
+<script setup>
+import { ref, onMounted } from 'vue'
+import {
+  ElInput, ElButton, ElTable, ElTableColumn, ElTag, ElCard, ElDialog, ElForm, ElFormItem, ElSelect, ElOption, ElMessage, ElMessageBox
+} from 'element-plus'
+import { Search, Plus, Edit, Delete } from '@element-plus/icons-vue'
+import { fetchUserList, fetchAllRoles, createUser, updateUser, deleteUser } from '../api/user'
+
+const searchForm = ref({
+  username: '',
+  realName: '',
+  roleId: null,
+  department: ''
+})
+
+const userList = ref([])
+const roleList = ref([])
+const loading = ref(false)
+const total = ref(0)
+const currentPage = ref(1)
+const pageSize = ref(10)
+
+const dialogVisible = ref(false)
+const dialogType = ref('add') // 'add' or 'edit'
+const formRef = ref(null)
+
+const formData = ref({
+  id: null,
+  username: '',
+  password: '',
+  realName: '',
+  phone: '',
+  email: '',
+  department: '',
+  areaCode: '',
+  roleId: null,
+  enabled: true
+})
+
+const rules = {
+  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 8, message: '密码至少 8 位', trigger: 'blur' }
+  ],
+  roleId: [{ required: true, message: '请选择角色', trigger: 'change' }]
+}
+
+const getRoleTag = (roleCode) => {
+  switch (roleCode) {
+    case 'SUPER_ADMIN': return { type: 'danger', text: '系统管理员' }
+    case 'MUNICIPAL': return { type: 'warning', text: '市政人员' }
+    case 'MAINTENANCE': return { type: 'primary', text: '路灯管理员' }
+    case 'EMERGENCY': return { type: 'success', text: '安全应急员' }
+    default: return { type: 'info', text: '普通用户' }
+  }
+}
+
+const loadRoles = async () => {
+  try {
+    const res = await fetchAllRoles()
+    if (res && res.code === 200) {
+      roleList.value = res.data
+    } else {
+      roleList.value = res || []
+    }
+  } catch (error) {
+    console.error('获取角色失败', error)
+  }
+}
+
+const loadUsers = async () => {
+  loading.value = true
+  try {
+    const query = {
+      page: currentPage.value,
+      size: pageSize.value,
+      ...searchForm.value
+    }
+    const res = await fetchUserList(query)
+    if (res && res.data) {
+      userList.value = res.data.records || res.data.list || []
+      total.value = res.data.total || 0
+    }
+  } catch (error) {
+    ElMessage.error('获取用户列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleSearch = () => {
+  currentPage.value = 1
+  loadUsers()
+}
+
+const handleReset = () => {
+  searchForm.value = {
+    username: '',
+    realName: '',
+    roleId: null,
+    department: ''
+  }
+  handleSearch()
+}
+
+const handleAdd = () => {
+  dialogType.value = 'add'
+  formData.value = {
+    id: null, username: '', password: '', realName: '', phone: '', email: '', department: '', areaCode: '', roleId: null, enabled: true
+  }
+  dialogVisible.value = true
+}
+
+const handleEdit = (row) => {
+  dialogType.value = 'edit'
+  formData.value = { ...row, password: '' }
+  dialogVisible.value = true
+}
+
+const handleSubmit = async () => {
+  if (!formRef.value) return
+  await formRef.value.validate(async (valid) => {
+    if (valid) {
+      // Edit form drops password if empty
+      const payload = { ...formData.value }
+      if (dialogType.value === 'edit' && !payload.password) {
+        delete payload.password
+      }
+      
+      try {
+        if (dialogType.value === 'add') {
+          await createUser(payload)
+          ElMessage.success('新增用户成功')
+        } else {
+          await updateUser(payload.id, payload)
+          ElMessage.success('修改用户成功')
+        }
+        dialogVisible.value = false
+        loadUsers()
+      } catch (error) {
+        ElMessage.error(error.message || '操作失败')
+      }
+    }
+  })
+}
+
+const handleDelete = (row) => {
+  ElMessageBox.confirm(`确定要删除用户 "${row.username}" 吗？`, '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      await deleteUser(row.id)
+      ElMessage.success('删除成功')
+      loadUsers()
+    } catch (error) {
+      ElMessage.error('删除失败')
+    }
+  }).catch(() => {})
+}
+
+onMounted(() => {
+  loadRoles()
+  loadUsers()
+})
+</script>
+
+<template>
+  <div class="user-list-container">
+    <div class="search-bar">
+      <ElForm :inline="true" :model="searchForm" class="search-form">
+        <ElFormItem label="用户名">
+          <ElInput v-model="searchForm.username" placeholder="请输入用户名" clearable />
+        </ElFormItem>
+        <ElFormItem label="姓名">
+          <ElInput v-model="searchForm.realName" placeholder="请输入姓名" clearable />
+        </ElFormItem>
+        <ElFormItem label="角色">
+          <ElSelect v-model="searchForm.roleId" placeholder="请选择角色" clearable style="width: 180px">
+            <ElOption v-for="role in roleList" :key="role.id" :label="role.name" :value="role.id" />
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem>
+          <ElButton type="primary" @click="handleSearch"><Search /> 查询</ElButton>
+          <ElButton @click="handleReset">重置</ElButton>
+          <ElButton type="success" @click="handleAdd"><Plus /> 新增用户</ElButton>
+        </ElFormItem>
+      </ElForm>
+    </div>
+
+    <div class="user-content" v-loading="loading">
+      <ElTable :data="userList" border stripe style="width: 100%">
+        <ElTableColumn prop="id" label="ID" width="80" />
+        <ElTableColumn prop="username" label="用户名" min-width="120" />
+        <ElTableColumn prop="realName" label="真实姓名" min-width="100" />
+        <ElTableColumn label="角色" min-width="120">
+          <template #default="{ row }">
+            <ElTag v-if="row.roleCode" :type="getRoleTag(row.roleCode).type">
+              {{ row.roleName }}
+            </ElTag>
+          </template>
+        </ElTableColumn>
+        <ElTableColumn prop="department" label="部门" min-width="120" />
+        <ElTableColumn prop="phone" label="联系电话" min-width="120" />
+        <ElTableColumn label="状态" width="100">
+          <template #default="{ row }">
+            <ElTag :type="row.enabled ? 'success' : 'danger'">
+              {{ row.enabled ? '正常' : '停用' }}
+            </ElTag>
+          </template>
+        </ElTableColumn>
+        <ElTableColumn prop="createTime" label="创建时间" min-width="160" />
+        <ElTableColumn label="操作" width="180" fixed="right">
+          <template #default="{ row }">
+            <ElButton type="primary" link @click="handleEdit(row)"><Edit /> 编辑</ElButton>
+            <ElButton type="danger" link @click="handleDelete(row)"><Delete /> 删除</ElButton>
+          </template>
+        </ElTableColumn>
+      </ElTable>
+    </div>
+
+    <!-- 用户表单弹窗 -->
+    <ElDialog
+      v-model="dialogVisible"
+      :title="dialogType === 'add' ? '新增用户' : '编辑用户'"
+      width="500px"
+      custom-class="dark-dialog"
+    >
+      <ElForm ref="formRef" :model="formData" :rules="rules" label-width="100px">
+        <ElFormItem label="用户名" prop="username">
+          <ElInput v-model="formData.username" :disabled="dialogType === 'edit'" placeholder="请输入用户名" />
+        </ElFormItem>
+        <ElFormItem label="密码" :prop="dialogType === 'add' ? 'password' : ''">
+          <ElInput v-model="formData.password" type="password" placeholder="请输入密码" show-password />
+          <div v-if="dialogType === 'edit'" class="form-hint">留空表示不修改密码</div>
+        </ElFormItem>
+        <ElFormItem label="真实姓名" prop="realName">
+          <ElInput v-model="formData.realName" placeholder="请输入真实姓名" />
+        </ElFormItem>
+        <ElFormItem label="角色" prop="roleId">
+          <ElSelect v-model="formData.roleId" placeholder="请选择角色" style="width: 100%">
+            <ElOption v-for="role in roleList" :key="role.id" :label="role.name" :value="role.id" />
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem label="联系电话" prop="phone">
+          <ElInput v-model="formData.phone" placeholder="请输入联系电话" />
+        </ElFormItem>
+        <ElFormItem label="部门" prop="department">
+          <ElInput v-model="formData.department" placeholder="请输入所属部门" />
+        </ElFormItem>
+        <ElFormItem label="账号状态" prop="enabled">
+          <ElSelect v-model="formData.enabled" style="width: 100%">
+            <ElOption label="正常" :value="true" />
+            <ElOption label="停用" :value="false" />
+          </ElSelect>
+        </ElFormItem>
+      </ElForm>
+      <template #footer>
+        <span class="dialog-footer">
+          <ElButton @click="dialogVisible = false">取消</ElButton>
+          <ElButton type="primary" @click="handleSubmit">确定</ElButton>
+        </span>
+      </template>
+    </ElDialog>
+  </div>
+</template>
+
+<style scoped>
+.user-list-container {
+  padding: 24px;
+  min-height: 100vh;
+  background-color: #1a1a2e;
+}
+
+.search-bar {
+  background-color: rgba(30, 30, 50, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.user-content {
+  background-color: rgba(30, 30, 50, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+</style>

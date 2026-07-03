@@ -78,6 +78,12 @@ const routes = [
         component: () => import('../views/SystemLog.vue'),
         meta: { title: '系统日志' },
       },
+      {
+        path: 'users',
+        name: 'UserManagement',
+        component: () => import('../views/UserManagement.vue'),
+        meta: { title: '用户管理' },
+      },
       // ── 队友新增页面路由 ────────────────────────────────────────────────────
       {
         path: 'device/list',

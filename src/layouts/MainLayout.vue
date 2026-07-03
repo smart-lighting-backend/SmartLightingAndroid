@@ -21,6 +21,7 @@ const navItems = [
   { name: 'strategy',        label: '策略配置',  icon: 'strategy', path: '/strategy' },
   { name: 'assistant',       label: '智能助手',  icon: 'robot',    path: '/assistant' },
   { name: 'logs',            label: '系统日志',  icon: 'history',  path: '/logs' },
+  { name: 'users',           label: '用户管理',  icon: 'user',     path: '/users' },
 ]
 
 const activeNav = computed(() => {
@@ -98,6 +99,10 @@ function logout() {
           <!-- History icon -->
           <svg v-else-if="item.icon === 'history'" class="nav-icon" viewBox="0 0 24 24" fill="none">
             <path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0A9 9 0 0 0 3 12z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <!-- User icon -->
+          <svg v-else-if="item.icon === 'user'" class="nav-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
 
           <span class="nav-label">{{ item.label }}</span>
