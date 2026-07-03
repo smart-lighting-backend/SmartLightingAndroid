@@ -182,12 +182,12 @@ const updateChart = () => {
  xAxis: {
  type: 'category',
  data: historyData.value.map(item => item.time),
- name: historyData.value.length > 0 ? (historyData.value[0].time.substring(0, 4) + '年') : '',
+ name: historyData.value.length > 0 ? ('\n\n\n' + historyData.value[0].time.substring(0, 4) + '年') : '',
  nameLocation: 'start',
  nameTextStyle: {
  color: '#909399',
  fontSize: 12,
- padding: [28, 5, 0, 0]
+ padding: [0, 5, 0, 0]
  },
  axisLabel: {
  color: '#909399',
@@ -349,12 +349,12 @@ const updateTempHumidityChart = () => {
  xAxis: {
  type: 'category',
  data: historyData.value.map(item => item.time),
- name: historyData.value.length > 0 ? (historyData.value[0].time.substring(0, 4) + '年') : '',
+ name: historyData.value.length > 0 ? ('\n\n\n' + historyData.value[0].time.substring(0, 4) + '年') : '',
  nameLocation: 'start',
  nameTextStyle: {
  color: '#909399',
  fontSize: 12,
- padding: [28, 5, 0, 0]
+ padding: [0, 5, 0, 0]
  },
  axisLabel: {
  color: '#909399',
