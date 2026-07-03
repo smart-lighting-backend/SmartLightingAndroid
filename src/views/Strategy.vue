@@ -10,15 +10,16 @@ const loading = ref(false)
 async function loadData() {
   loading.value = true
   const res = await fetchStrategyList()
-  strategies.value = res.data?.list || []
+  // 新接口直接返回数组
+  strategies.value = Array.isArray(res.data) ? res.data : (res.data?.list || [])
   loading.value = false
 }
 
 onMounted(loadData)
 
 async function toggle(s) {
-  s.status = s.status === 'active' ? 'inactive' : 'active'
-  await toggleStrategy(s.id, s.status)
+  s.enabled = !s.enabled
+  await toggleStrategy(s.id, s.enabled)
 }
 async function remove(s) {
   if (!confirm(`确认删除策略"${s.name}"？`)) return
@@ -56,8 +57,8 @@ async function remove(s) {
         </div>
         <div class="sc-right">
           <div class="toggle-wrap">
-            <span class="toggle-label" :class="s.status">{{ s.status === 'active' ? '启用' : '停用' }}</span>
-            <div class="toggle-switch" :class="{ on: s.status === 'active' }" @click="toggle(s)">
+            <span class="toggle-label" :class="s.enabled ? 'active' : 'inactive'">{{ s.enabled ? '启用' : '停用' }}</span>
+            <div class="toggle-switch" :class="{ on: s.enabled }" @click="toggle(s)">
               <div class="toggle-thumb"></div>
             </div>
           </div>
