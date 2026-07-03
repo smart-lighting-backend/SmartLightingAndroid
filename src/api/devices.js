@@ -17,6 +17,7 @@
  * 设备状态: 0 停用 | 1 在线 | 2 离线 | 3 异常
  */
 import request from './request.js'
+import { reportMock } from '../utils/mockStore.js'
 
 // ── 状态映射工具 ───────────────────────────────────────────────────────────
 export const STATUS_MAP = {
@@ -42,13 +43,14 @@ const MOCK_TELEMETRY = {
   'SL-004': { id: 2, deviceId: 'SL-004', illuminance: 85.0, temperature: 35.0, humidity: 60, pm25: 30, aqi: 80, pir: 0, trafficFlow: 56,  collectedAt: '2026-07-02T09:15:00' },
 }
 
-async function safeCall(apiFn, mockData) {
+async function safeCall(apiFn, mockData, endpoint) {
   try {
     return await apiFn()
   } catch (e) {
-    const isNetworkErr = !e?.response && !e?.bizCode
-    if (isNetworkErr) return { code: 200, msg: 'mock', data: mockData }
-    throw e
+    // 业务错误（后端返回 code != 200）继续抛出，其他错误（网络/404/500）降级 Mock
+    if (e?.bizCode) throw e
+    if (endpoint) reportMock(endpoint)
+    return { code: 200, msg: 'mock', data: mockData }
   }
 }
 
@@ -111,7 +113,8 @@ export function fetchDevicePage(params = {}) {
 
   return safeCall(
     () => request.post('/api/devices/list', body),
-    { records: paged, total, size, current, pages: Math.ceil(total / size) }
+    { records: paged, total, size, current, pages: Math.ceil(total / size) },
+    'POST /api/devices/list'
   )
 }
 
@@ -120,19 +123,25 @@ export function fetchDevicePage(params = {}) {
  * 轻量版列表查询，供 Dashboard 等简单场景使用
  * @param {{ area?: string, status?: number }} params
  */
-export function fetchDeviceList(params = {}) {
+export async function fetchDeviceList(params = {}) {
   const body = {}
   if (params.area !== undefined && params.area !== null)   body.area   = params.area
   if (params.status !== undefined && params.status !== null) body.status = params.status
 
-  let list = MOCK_DEVICES.filter(d => !d.deleted)
-  if (body.area)   list = list.filter(d => d.area   === body.area)
-  if (body.status !== undefined) list = list.filter(d => d.status === body.status)
+  let mockList = MOCK_DEVICES.filter(d => !d.deleted)
+  if (body.area)   mockList = mockList.filter(d => d.area   === body.area)
+  if (body.status !== undefined) mockList = mockList.filter(d => d.status === body.status)
 
-  return safeCall(
+  const res = await safeCall(
     () => request.post('/api/devices/list', { pageNum: 1, pageSize: 100, ...body }),
-    list
+    mockList,
+    'POST /api/devices/list (light)'
   )
+  // 兼容后端分页格式 { records: [...] } 和直接返回数组
+  if (res?.data?.records) return res.data.records
+  if (Array.isArray(res)) return res
+  if (Array.isArray(res?.data)) return res.data
+  return res || []
 }
 
 // ── 设备详情 GET /api/devices/{deviceId} ─────────────────────────────────
@@ -142,7 +151,8 @@ export function fetchDeviceList(params = {}) {
 export function fetchDeviceDetail(deviceId) {
   return safeCall(
     () => request.get(`/api/devices/${deviceId}`),
-    MOCK_DEVICES.find(d => d.deviceId === deviceId) || MOCK_DEVICES[0]
+    MOCK_DEVICES.find(d => d.deviceId === deviceId) || MOCK_DEVICES[0],
+    `GET /api/devices/${deviceId}`
   )
 }
 
@@ -162,7 +172,8 @@ export function fetchDeviceDetail(deviceId) {
 export function createDevice(data) {
   return safeCall(
     () => request.post('/api/devices', data),
-    { id: Date.now(), deleted: false, status: 1, healthScore: 100.00, topicPrefix: 'streetlight', enabled: true, ...data }
+    { id: Date.now(), deleted: false, status: 1, healthScore: 100.00, topicPrefix: 'streetlight', enabled: true, ...data },
+    'POST /api/devices'
   )
 }
 
@@ -182,7 +193,8 @@ export function createDevice(data) {
 export function updateDevice(deviceId, data) {
   return safeCall(
     () => request.put(`/api/devices/${deviceId}`, data),
-    { ...(MOCK_DEVICES.find(d => d.deviceId === deviceId) || {}), ...data }
+    { ...(MOCK_DEVICES.find(d => d.deviceId === deviceId) || {}), ...data },
+    `PUT /api/devices/${deviceId}`
   )
 }
 
@@ -193,7 +205,8 @@ export function updateDevice(deviceId, data) {
 export function deleteDevice(deviceId) {
   return safeCall(
     () => request.delete(`/api/devices/${deviceId}`),
-    null
+    null,
+    `DELETE /api/devices/${deviceId}`
   )
 }
 
@@ -204,8 +217,7 @@ export function deleteDevice(deviceId) {
 export function fetchLatestTelemetry(deviceId) {
   return safeCall(
     () => request.get(`/api/telemetry/latest/${deviceId}`),
-    MOCK_TELEMETRY[deviceId] || {
-      deviceId,
+    MOCK_TELEMETRY[deviceId] || {      deviceId,
       illuminance: Math.round(Math.random() * 500 + 10),
       temperature: +(Math.random() * 20 + 25).toFixed(1),
       humidity:    Math.round(Math.random() * 50 + 30),
@@ -214,7 +226,8 @@ export function fetchLatestTelemetry(deviceId) {
       pir:         Math.round(Math.random()),
       trafficFlow: Math.round(Math.random() * 200),
       collectedAt: new Date().toISOString(),
-    }
+    },
+    `GET /api/telemetry/latest/${deviceId}`
   )
 }
 
@@ -234,7 +247,8 @@ export function fetchTelemetryHistory(params) {
   }))
   return safeCall(
     () => request.post('/api/telemetry/history', params),
-    mock
+    mock,
+    'POST /api/telemetry/history'
   )
 }
 
@@ -243,7 +257,8 @@ export function fetchStatusStatistics(area) {
   const params = area ? { area } : {}
   return safeCall(
     () => request.get('/api/devices/statistics/status', { params }),
-    [{ status: 1, count: 4 }, { status: 2, count: 1 }, { status: 3, count: 1 }]
+    [{ status: 1, count: 4 }, { status: 2, count: 1 }, { status: 3, count: 1 }],
+    'GET /api/devices/statistics/status'
   )
 }
 
@@ -257,7 +272,8 @@ export function fetchAreaStatusStatistics() {
       { area: 'C区', status: 1, count: 1 },
       { area: 'D区', status: 1, count: 1 },
       { area: 'E区', status: 1, count: 1 },
-    ]
+    ],
+    'GET /api/devices/statistics/area-status'
   )
 }
 
@@ -269,19 +285,28 @@ export function fetchAreaStatusStatistics() {
 export function controlDevice(deviceId, payload) {
   return safeCall(
     () => request.post(`/api/devices/${deviceId}/control`, payload),
-    null
+    null,
+    `POST /api/devices/${deviceId}/control`
   )
 }
 
 // ── 节点列表（手动控制弹窗用） ─────────────────────────────────────────────
-export function fetchDeviceNodes() {
-  return safeCall(
+export async function fetchDeviceNodes() {
+  const mockNodes = MOCK_DEVICES.map(d => ({
+    deviceId: d.deviceId,
+    name:     d.name,
+    location: d.area + ' ' + d.location,
+    status:   d.status,
+  }))
+  const res = await safeCall(
     () => request.post('/api/devices/list', { pageNum: 1, pageSize: 100 }),
-    MOCK_DEVICES.map(d => ({
-      deviceId: d.deviceId,
-      name:     d.name,
-      location: d.area + ' ' + d.location,
-      status:   d.status,
-    }))
+    mockNodes,
+    'POST /api/devices/list (nodes)'
   )
+  // 兼容后端分页格式 { records: [...] } 和直接返回数组
+  if (res?.data?.records) return res.data.records
+  if (Array.isArray(res)) return res
+  if (Array.isArray(res?.data)) return res.data
+  return res || []
 }
+

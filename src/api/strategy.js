@@ -11,6 +11,7 @@
  *   PUT    /api/policies/{id}/toggle  启用/禁用策略
  */
 import request from './request.js'
+import { reportMock } from '../utils/mockStore.js'
 
 // ── Mock 数据 ─────────────────────────────────────────────────────────────
 const MOCK_POLICIES = [
@@ -40,13 +41,13 @@ const MOCK_POLICIES = [
   },
 ]
 
-async function safeCall(apiFn, mockData) {
+async function safeCall(apiFn, mockData, endpoint) {
   try {
     return await apiFn()
   } catch (e) {
-    const isNetworkErr = !e?.response && !e?.bizCode
-    if (isNetworkErr) return { code: 200, msg: 'mock', data: mockData }
-    throw e
+    if (e?.bizCode) throw e
+    if (endpoint) reportMock(endpoint)
+    return { code: 200, msg: 'mock', data: mockData }
   }
 }
 
@@ -54,7 +55,8 @@ async function safeCall(apiFn, mockData) {
 export function fetchStrategyList() {
   return safeCall(
     () => request.get('/api/policies'),
-    MOCK_POLICIES
+    MOCK_POLICIES,
+    'GET /api/policies'
   )
 }
 
@@ -62,7 +64,8 @@ export function fetchStrategyList() {
 export function fetchStrategyDetail(id) {
   return safeCall(
     () => request.get(`/api/policies/${id}`),
-    MOCK_POLICIES.find(p => p.id === id) || MOCK_POLICIES[0]
+    MOCK_POLICIES.find(p => p.id === id) || MOCK_POLICIES[0],
+    `GET /api/policies/${id}`
   )
 }
 
@@ -70,7 +73,8 @@ export function fetchStrategyDetail(id) {
 export function createStrategy(data) {
   return safeCall(
     () => request.post('/api/policies', data),
-    { id: Date.now(), enabled: true, triggerCount: 0, ...data }
+    { id: Date.now(), enabled: true, triggerCount: 0, ...data },
+    'POST /api/policies'
   )
 }
 
@@ -78,7 +82,8 @@ export function createStrategy(data) {
 export function updateStrategy(id, data) {
   return safeCall(
     () => request.put(`/api/policies/${id}`, data),
-    { id, ...data }
+    { id, ...data },
+    `PUT /api/policies/${id}`
   )
 }
 
@@ -86,7 +91,8 @@ export function updateStrategy(id, data) {
 export function deleteStrategy(id) {
   return safeCall(
     () => request.delete(`/api/policies/${id}`),
-    null
+    null,
+    `DELETE /api/policies/${id}`
   )
 }
 
@@ -98,7 +104,8 @@ export function deleteStrategy(id) {
 export function toggleStrategy(id, enabled) {
   return safeCall(
     () => request.put(`/api/policies/${id}/toggle`, { enabled }),
-    { id, enabled }
+    { id, enabled },
+    `PUT /api/policies/${id}/toggle`
   )
 }
 
@@ -106,6 +113,7 @@ export function toggleStrategy(id, enabled) {
 export function fetchStrategyGroups() {
   return safeCall(
     () => request.get('/api/policies/groups'),
-    ['主干道节能组', '景观灯组', '全域组', '园区灯组', '校区灯组']
+    ['主干道节能组', '景观灯组', '全域组', '园区灯组', '校区灯组'],
+    'GET /api/policies/groups'
   )
 }

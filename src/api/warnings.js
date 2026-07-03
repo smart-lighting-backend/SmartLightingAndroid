@@ -19,6 +19,7 @@
  * 告警类型: OFFLINE | FAULT | SECURITY | VISION
  */
 import request from './request.js'
+import { reportMock } from '../utils/mockStore.js'
 
 // ── 状态/级别/类型映射 ──────────────────────────────────────────────────────
 export const ALARM_STATUS_MAP = {
@@ -54,13 +55,13 @@ const MOCK_ALARMS = [
   { id: 8, deviceId: 'SL-001', type: 'SECURITY', level: 'CRITICAL', status: 'RECOVERED',    reason: '检测到可疑人员在设备周围长时间徘徊',                          startAt: '2023-10-24T23:15:18', recoverAt: '2023-10-24T23:45:00', handler: '安保组' },
 ]
 
-async function safeCall(apiFn, mockData) {
+async function safeCall(apiFn, mockData, endpoint) {
   try {
     return await apiFn()
   } catch (e) {
-    const isNetworkErr = !e?.response && !e?.bizCode
-    if (isNetworkErr) return { code: 200, msg: 'mock', data: mockData }
-    throw e
+    if (e?.bizCode) throw e
+    if (endpoint) reportMock(endpoint)
+    return { code: 200, msg: 'mock', data: mockData }
   }
 }
 
@@ -110,7 +111,8 @@ export function fetchAlarmPage(params = {}) {
 
   return safeCall(
     () => request.post('/api/alarms/list', body),
-    { records: paged, total, size, current, pages: Math.ceil(total / size) }
+    { records: paged, total, size, current, pages: Math.ceil(total / size) },
+    'POST /api/alarms/list'
   )
 }
 
@@ -118,7 +120,8 @@ export function fetchAlarmPage(params = {}) {
 export function fetchAlarmDetail(id) {
   return safeCall(
     () => request.get(`/api/alarms/${id}`),
-    MOCK_ALARMS.find(a => a.id === id) || MOCK_ALARMS[0]
+    MOCK_ALARMS.find(a => a.id === id) || MOCK_ALARMS[0],
+    `GET /api/alarms/${id}`
   )
 }
 
@@ -126,7 +129,8 @@ export function fetchAlarmDetail(id) {
 export function createAlarm(data) {
   return safeCall(
     () => request.post('/api/alarms', data),
-    { id: Date.now(), ...data, startAt: new Date().toISOString() }
+    { id: Date.now(), ...data, startAt: new Date().toISOString() },
+    'POST /api/alarms'
   )
 }
 
@@ -134,7 +138,8 @@ export function createAlarm(data) {
 export function updateAlarm(id, data) {
   return safeCall(
     () => request.put(`/api/alarms/${id}`, data),
-    { id, ...data }
+    { id, ...data },
+    `PUT /api/alarms/${id}`
   )
 }
 
@@ -142,7 +147,8 @@ export function updateAlarm(id, data) {
 export function deleteAlarm(id) {
   return safeCall(
     () => request.delete(`/api/alarms/${id}`),
-    null
+    null,
+    `DELETE /api/alarms/${id}`
   )
 }
 
@@ -154,7 +160,8 @@ export function deleteAlarm(id) {
 export function handleAlarm(id, data) {
   return safeCall(
     () => request.put(`/api/alarms/${id}/handle`, data),
-    { id, status: 'ACKNOWLEDGED', handler: data.handler, recoverAt: new Date().toISOString() }
+    { id, status: 'ACKNOWLEDGED', handler: data.handler, recoverAt: new Date().toISOString() },
+    `PUT /api/alarms/${id}/handle`
   )
 }
 
@@ -183,7 +190,7 @@ export function fetchAlarmStats() {
       { status: 'RECOVERED',    count: 5 },
     ],
   }
-  return safeCall(() => request.get('/api/alarms/stats'), mockStats)
+  return safeCall(() => request.get('/api/alarms/stats'), mockStats, 'GET /api/alarms/stats')
 }
 
 // ── 告警趋势 GET /api/alarms/trend?days=7 ────────────────────────────────
@@ -201,7 +208,8 @@ export function fetchAlarmTrend(days = 7) {
   })
   return safeCall(
     () => request.get('/api/alarms/trend', { params: { days } }),
-    mockTrend
+    mockTrend,
+    'GET /api/alarms/trend'
   )
 }
 
@@ -212,7 +220,8 @@ export function fetchAlarmTrend(days = 7) {
 export function batchHandleAlarm(data) {
   return safeCall(
     () => request.put('/api/alarms/batch/handle', data),
-    { updatedCount: data.ids?.length || 0 }
+    { updatedCount: data.ids?.length || 0 },
+    'PUT /api/alarms/batch/handle'
   )
 }
 
@@ -223,6 +232,7 @@ export function batchHandleAlarm(data) {
 export function batchDeleteAlarm(data) {
   return safeCall(
     () => request.delete('/api/alarms/batch', { data }),
-    { deletedCount: data.ids?.length || 0 }
+    { deletedCount: data.ids?.length || 0 },
+    'DELETE /api/alarms/batch'
   )
 }
