@@ -187,7 +187,7 @@ const updateChart = () => {
  nameTextStyle: {
  color: '#909399',
  fontSize: 12,
- padding: [0, 5, 0, 0]
+ padding: [28, 5, 0, 0]
  },
  axisLabel: {
  color: '#909399',
@@ -354,7 +354,7 @@ const updateTempHumidityChart = () => {
  nameTextStyle: {
  color: '#909399',
  fontSize: 12,
- padding: [0, 5, 0, 0]
+ padding: [28, 5, 0, 0]
  },
  axisLabel: {
  color: '#909399',
