@@ -78,6 +78,37 @@ const routes = [
         component: () => import('../views/SystemLog.vue'),
         meta: { title: '系统日志' },
       },
+      // ── 队友新增页面路由 ────────────────────────────────────────────────────
+      {
+        path: 'device/list',
+        name: 'DeviceList',
+        component: () => import('../views/DeviceList.vue'),
+        meta: { title: '设备列表' },
+      },
+      {
+        path: 'device/detail/:id',
+        name: 'DeviceDetailV2',
+        component: () => import('../views/DeviceDetail.vue'),
+        meta: { title: '设备详情' },
+      },
+      {
+        path: 'alarm/list',
+        name: 'AlarmList',
+        component: () => import('../views/AlarmList.vue'),
+        meta: { title: '告警日志' },
+      },
+      {
+        path: 'alarm/detail/:id',
+        name: 'AlarmDetail',
+        component: () => import('../views/AlarmDetail.vue'),
+        meta: { title: '告警详情' },
+      },
+      {
+        path: 'city/3d',
+        name: 'SmartCity3D',
+        component: () => import('../views/SmartCity3D.vue'),
+        meta: { title: '3D可视化' },
+      },
     ],
   },
   {
