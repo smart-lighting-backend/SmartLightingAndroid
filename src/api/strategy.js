@@ -9,6 +9,8 @@
  *   PUT    /api/policies/{id}      更新策略
  *   DELETE /api/policies/{id}      删除策略
  *   PUT    /api/policies/{id}/toggle  启用/禁用策略
+ *   GET    /api/policies/lux-threshold 查询光照阈值
+ *   PUT    /api/policies/lux-threshold 更新光照阈值
  */
 import request from './request.js'
 import { reportMock } from '../utils/mockStore.js'
@@ -115,5 +117,23 @@ export function fetchStrategyGroups() {
     () => request.get('/api/policies/groups'),
     ['主干道节能组', '景观灯组', '全域组', '园区灯组', '校区灯组'],
     'GET /api/policies/groups'
+  )
+}
+
+// ── 查询光照阈值 GET /api/policies/lux-threshold ──────────────────────────
+export function getLuxThreshold() {
+  return safeCall(
+    () => request.get('/api/policies/lux-threshold'),
+    { policyId: 1, policyName: '光照联动自动开关', luxLt: 50, luxGt: 200, conditions: '{"lux_lt":50,"lux_gt":200}', enabled: true, priority: 1 },
+    'GET /api/policies/lux-threshold'
+  )
+}
+
+// ── 更新光照阈值 PUT /api/policies/lux-threshold ──────────────────────────
+export function updateLuxThreshold(data) {
+  return safeCall(
+    () => request.put('/api/policies/lux-threshold', data),
+    { policyId: 1, policyName: '光照联动自动开关', luxLt: data.luxLt, luxGt: data.luxGt, conditions: `{"lux_lt":${data.luxLt},"lux_gt":${data.luxGt}}`, enabled: true, priority: 1 },
+    'PUT /api/policies/lux-threshold'
   )
 }
