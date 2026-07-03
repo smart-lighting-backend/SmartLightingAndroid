@@ -1,45 +1,40 @@
 /**
  * api/devices.js — 设备管理相关接口
- * 对齐接口文档 V2.0
+ * 对齐接口文档：开发变更日志 v1.0.0 三、设备管理模块 + 设备管理CRUD接口开发日志
  *
- * 设备状态约定（后端整数）:
- *   0 停用 | 1 在线 | 2 离线 | 3 异常
+ * 接口列表:
+ *   POST   /api/devices/list            设备组合查询（分页，8个筛选条件）
+ *   GET    /api/devices/{deviceId}      查询设备详情
+ *   POST   /api/devices                 新增设备
+ *   PUT    /api/devices/{deviceId}      修改设备
+ *   DELETE /api/devices/{deviceId}      删除设备（逻辑删除）
+ *   GET    /api/telemetry/latest/{deviceId}   最新遥测数据
+ *   POST   /api/telemetry/history             历史遥测数据
+ *   GET    /api/devices/statistics/status     状态统计
+ *   GET    /api/devices/statistics/area-status 区域状态统计
+ *   POST   /api/devices/{deviceId}/control   手动控制
  *
- * 接口列表：
- *   GET  /api/devices/list                   设备台账列表（数组，支持 area/status 过滤）
- *   GET  /api/devices/{deviceId}             单设备详情（按业务编号）
- *   GET  /api/devices/page                   分页查询（管理端）
- *   POST /api/devices                        新增设备
- *   PUT  /api/devices/{id}                   修改设备
- *   DELETE /api/devices/{id}                 删除设备（逻辑删除）
- *   GET  /api/telemetry/latest/{deviceId}    最新遥测数据
- *   POST /api/telemetry/history              历史遥测数据
- *   GET  /api/devices/statistics/status      状态统计
- *   GET  /api/devices/statistics/area-status 区域状态统计
- *   POST /api/devices/{deviceId}/control     手动控制（ON / OFF / DIMMING）
+ * 设备状态: 0 停用 | 1 在线 | 2 离线 | 3 异常
  */
 import request from './request.js'
 
 // ── 状态映射工具 ───────────────────────────────────────────────────────────
-// 后端返回整数，前端展示时使用此映射
 export const STATUS_MAP = {
-  0: { label: '停用',  cls: 'disabled', color: '#888' },
-  1: { label: '在线',  cls: 'online',   color: '#4caf50' },
-  2: { label: '离线',  cls: 'offline',  color: '#9e9e9e' },
-  3: { label: '异常',  cls: 'warning',  color: '#ffa726' },
+  0: { label: '停用', cls: 'disabled', color: '#888' },
+  1: { label: '在线', cls: 'online',   color: '#4caf50' },
+  2: { label: '离线', cls: 'offline',  color: '#9e9e9e' },
+  3: { label: '异常', cls: 'warning',  color: '#ffa726' },
 }
 export const STATUS_QUERY_MAP = { '全部': undefined, '在线': 1, '离线': 2, '异常': 3, '停用': 0 }
 
-// ── Mock 降级（后端不可达时） ──────────────────────────────────────────────
+// ── Mock 数据 ──────────────────────────────────────────────────────────────
 const MOCK_DEVICES = [
-  { id: 1, deviceId: 'SL-001', name: '南门-01',       area: 'A区', location: '106.5622,29.5621', status: 1, healthScore: 98.50, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:18:06', enabled: true, deleted: false },
-  { id: 2, deviceId: 'SL-002', name: '东门-02',       area: 'A区', location: '106.5630,29.5630', status: 1, healthScore: 85.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:17:30', enabled: true, deleted: false },
-  { id: 3, deviceId: 'SL-003', name: '创业大道-01',   area: 'B区', location: '106.5700,29.5700', status: 2, healthScore: 32.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-01T22:10:00', enabled: true, deleted: false },
-  { id: 4, deviceId: 'SL-004', name: '人民广场-01',   area: 'C区', location: '106.5660,29.5660', status: 1, healthScore: 78.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:15:00', enabled: true, deleted: false },
-  { id: 5, deviceId: 'SL-005', name: '工业园-01',     area: 'D区', location: '106.5800,29.5800', status: 1, healthScore: 88.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:16:00', enabled: true, deleted: false },
-  { id: 6, deviceId: 'SL-006', name: '学院路-01',     area: 'E区', location: '106.5900,29.5900', status: 1, healthScore: 95.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:14:00', enabled: true, deleted: false },
-  { id: 7, deviceId: 'SL-007', name: '滨湖大道-01',   area: 'F区', location: '106.6000,29.6000', status: 3, healthScore: 55.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T08:50:00', enabled: true, deleted: false },
-  { id: 8, deviceId: 'SL-008', name: '高铁站前-01',   area: 'G区', location: '106.6100,29.6100', status: 1, healthScore: 90.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:10:00', enabled: true, deleted: false },
+  { id: 1, deviceId: 'SL-001', name: '南门-01',     area: 'A区', location: '106.5622,29.5621', status: 1, healthScore: 98.50, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:18:06', enabled: true, deleted: false },
+  { id: 2, deviceId: 'SL-002', name: '东门-02',     area: 'A区', location: '106.5630,29.5630', status: 1, healthScore: 85.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:17:30', enabled: true, deleted: false },
+  { id: 3, deviceId: 'SL-003', name: '创业大道-01', area: 'B区', location: '106.5700,29.5700', status: 2, healthScore: 32.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-01T22:10:00', enabled: true, deleted: false },
+  { id: 4, deviceId: 'SL-004', name: '人民广场-01', area: 'C区', location: '106.5660,29.5660', status: 1, healthScore: 78.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:15:00', enabled: true, deleted: false },
+  { id: 5, deviceId: 'SL-005', name: '工业园-01',   area: 'D区', location: '106.5800,29.5800', status: 1, healthScore: 88.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:16:00', enabled: true, deleted: false },
+  { id: 6, deviceId: 'SL-006', name: '学院路-01',   area: 'E区', location: '106.5900,29.5900', status: 1, healthScore: 95.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:14:00', enabled: true, deleted: false },
 ]
 
 const MOCK_TELEMETRY = {
@@ -51,29 +46,96 @@ async function safeCall(apiFn, mockData) {
   try {
     return await apiFn()
   } catch (e) {
-    // 网络不可达时降级到 Mock；业务错误（code≠200）直接抛出
     const isNetworkErr = !e?.response && !e?.bizCode
     if (isNetworkErr) return { code: 200, msg: 'mock', data: mockData }
     throw e
   }
 }
 
-// ── 设备列表（展示用，数组） ────────────────────────────────────────────────
+// ── 设备组合查询（分页）POST /api/devices/list ────────────────────────────
 /**
- * @param {{ area?: string, status?: number }} params
- * @returns {Promise<{ code, msg, data: Device[] }>}
+ * 接口文档：POST /api/devices/list
+ * 支持 8 个筛选条件:
+ *   deviceId 精确 | name LIKE | area 精确 | location LIKE
+ *   status 精确 | enabled 精确 | healthScoreMin >= | healthScoreMax <=
+ *
+ * @param {{
+ *   pageNum?: number,
+ *   pageSize?: number,
+ *   keyword?: string,
+ *   deviceId?: string,
+ *   name?: string,
+ *   area?: string,
+ *   location?: string,
+ *   status?: number,
+ *   enabled?: boolean,
+ *   healthScoreMin?: number,
+ *   healthScoreMax?: number
+ * }} params
  */
-export function fetchDeviceList(params = {}) {
-  const query = {}
-  if (params.area)   query.area   = params.area
-  if (params.status !== undefined && params.status !== null) query.status = params.status
+export function fetchDevicePage(params = {}) {
+  const body = {
+    pageNum:  params.pageNum  || 1,
+    pageSize: params.pageSize || 10,
+  }
+  // keyword 同时匹配 deviceId/name/location（前端传 keyword，后端对应 name LIKE）
+  if (params.keyword)           body.name          = params.keyword
+  if (params.deviceId)          body.deviceId      = params.deviceId
+  if (params.name)              body.name          = params.name
+  if (params.area)              body.area          = params.area
+  if (params.location)          body.location      = params.location
+  if (params.status !== undefined && params.status !== null) body.status = params.status
+  if (params.enabled !== undefined && params.enabled !== null) body.enabled = params.enabled
+  if (params.healthScoreMin !== undefined) body.healthScoreMin = params.healthScoreMin
+  if (params.healthScoreMax !== undefined) body.healthScoreMax = params.healthScoreMax
+
+  // Mock 数据客户端过滤
+  let list = MOCK_DEVICES.filter(d => !d.deleted)
+  if (params.keyword) {
+    const kw = params.keyword.toLowerCase()
+    list = list.filter(d =>
+      d.deviceId.toLowerCase().includes(kw) ||
+      d.name.toLowerCase().includes(kw) ||
+      d.location.toLowerCase().includes(kw)
+    )
+  }
+  if (body.area)    list = list.filter(d => d.area === body.area)
+  if (body.status !== undefined) list = list.filter(d => d.status === body.status)
+  if (body.enabled !== undefined) list = list.filter(d => d.enabled === body.enabled)
+
+  const total   = list.length
+  const size    = body.pageSize
+  const current = body.pageNum
+  const start   = (current - 1) * size
+  const paged   = list.slice(start, start + size)
+
   return safeCall(
-    () => request.get('/api/devices/list', { params: query }),
-    MOCK_DEVICES
+    () => request.post('/api/devices/list', body),
+    { records: paged, total, size, current, pages: Math.ceil(total / size) }
   )
 }
 
-// ── 设备详情（按业务编号 deviceId） ────────────────────────────────────────
+// ── 兼容旧接口：fetchDeviceList（某些页面可能仍使用） ─────────────────────
+/**
+ * 轻量版列表查询，供 Dashboard 等简单场景使用
+ * @param {{ area?: string, status?: number }} params
+ */
+export function fetchDeviceList(params = {}) {
+  const body = {}
+  if (params.area !== undefined && params.area !== null)   body.area   = params.area
+  if (params.status !== undefined && params.status !== null) body.status = params.status
+
+  let list = MOCK_DEVICES.filter(d => !d.deleted)
+  if (body.area)   list = list.filter(d => d.area   === body.area)
+  if (body.status !== undefined) list = list.filter(d => d.status === body.status)
+
+  return safeCall(
+    () => request.post('/api/devices/list', { pageNum: 1, pageSize: 100, ...body }),
+    list
+  )
+}
+
+// ── 设备详情 GET /api/devices/{deviceId} ─────────────────────────────────
 /**
  * @param {string} deviceId  例如 'SL-001'
  */
@@ -84,10 +146,60 @@ export function fetchDeviceDetail(deviceId) {
   )
 }
 
-// ── 最新遥测数据 ───────────────────────────────────────────────────────────
+// ── 新增设备 POST /api/devices ────────────────────────────────────────────
+/**
+ * @param {{
+ *   deviceId: string,
+ *   name?: string,
+ *   area?: string,
+ *   location?: string,
+ *   status?: number,
+ *   healthScore?: number,
+ *   topicPrefix?: string,
+ *   enabled?: boolean
+ * }} data
+ */
+export function createDevice(data) {
+  return safeCall(
+    () => request.post('/api/devices', data),
+    { id: Date.now(), deleted: false, status: 1, healthScore: 100.00, topicPrefix: 'streetlight', enabled: true, ...data }
+  )
+}
+
+// ── 修改设备 PUT /api/devices/{deviceId} ─────────────────────────────────
 /**
  * @param {string} deviceId
- * @returns {Promise<{ code, msg, data: Telemetry }>}
+ * @param {{
+ *   name?: string,
+ *   area?: string,
+ *   location?: string,
+ *   status?: number,
+ *   healthScore?: number,
+ *   topicPrefix?: string,
+ *   enabled?: boolean
+ * }} data
+ */
+export function updateDevice(deviceId, data) {
+  return safeCall(
+    () => request.put(`/api/devices/${deviceId}`, data),
+    { ...(MOCK_DEVICES.find(d => d.deviceId === deviceId) || {}), ...data }
+  )
+}
+
+// ── 删除设备（逻辑删除）DELETE /api/devices/{deviceId} ───────────────────
+/**
+ * @param {string} deviceId
+ */
+export function deleteDevice(deviceId) {
+  return safeCall(
+    () => request.delete(`/api/devices/${deviceId}`),
+    null
+  )
+}
+
+// ── 最新遥测数据 GET /api/telemetry/latest/{deviceId} ────────────────────
+/**
+ * @param {string} deviceId
  */
 export function fetchLatestTelemetry(deviceId) {
   return safeCall(
@@ -106,7 +218,7 @@ export function fetchLatestTelemetry(deviceId) {
   )
 }
 
-// ── 历史遥测数据（用于趋势图） ─────────────────────────────────────────────
+// ── 历史遥测数据 POST /api/telemetry/history ─────────────────────────────
 /**
  * @param {{ deviceId: string, startTime: string, endTime: string }} params
  */
@@ -126,33 +238,16 @@ export function fetchTelemetryHistory(params) {
   )
 }
 
-// ── 设备分页查询（管理端） ─────────────────────────────────────────────────
-/**
- * @param {{ pageNum?, pageSize?, keyword?, area?, status?, enabled? }} params
- */
-export function fetchDevicePage(params = {}) {
-  return safeCall(
-    () => request.get('/api/devices/page', { params }),
-    {
-      records: MOCK_DEVICES,
-      total: MOCK_DEVICES.length,
-      size: params.pageSize || 10,
-      current: params.pageNum || 1,
-      pages: 1,
-    }
-  )
-}
-
-// ── 状态统计 ──────────────────────────────────────────────────────────────
+// ── 状态统计 GET /api/devices/statistics/status ───────────────────────────
 export function fetchStatusStatistics(area) {
   const params = area ? { area } : {}
   return safeCall(
     () => request.get('/api/devices/statistics/status', { params }),
-    [{ status: 1, count: 6 }, { status: 2, count: 1 }, { status: 3, count: 1 }]
+    [{ status: 1, count: 4 }, { status: 2, count: 1 }, { status: 3, count: 1 }]
   )
 }
 
-// ── 区域状态统计 ───────────────────────────────────────────────────────────
+// ── 区域状态统计 GET /api/devices/statistics/area-status ──────────────────
 export function fetchAreaStatusStatistics() {
   return safeCall(
     () => request.get('/api/devices/statistics/area-status'),
@@ -162,13 +257,11 @@ export function fetchAreaStatusStatistics() {
       { area: 'C区', status: 1, count: 1 },
       { area: 'D区', status: 1, count: 1 },
       { area: 'E区', status: 1, count: 1 },
-      { area: 'F区', status: 3, count: 1 },
-      { area: 'G区', status: 1, count: 1 },
     ]
   )
 }
 
-// ── 手动控制设备 ───────────────────────────────────────────────────────────
+// ── 手动控制设备 POST /api/devices/{deviceId}/control ─────────────────────
 /**
  * @param {string} deviceId
  * @param {{ action: 'ON'|'OFF'|'DIMMING', brightness?: number }} payload
@@ -180,30 +273,15 @@ export function controlDevice(deviceId, payload) {
   )
 }
 
-// ── 新增设备 ──────────────────────────────────────────────────────────────
-export function createDevice(data) {
-  return safeCall(() => request.post('/api/devices', data), { id: Date.now(), ...data })
-}
-
-// ── 修改设备 ──────────────────────────────────────────────────────────────
-export function updateDevice(id, data) {
-  return safeCall(() => request.put(`/api/devices/${id}`, data), { id, ...data })
-}
-
-// ── 删除设备 ──────────────────────────────────────────────────────────────
-export function deleteDevice(id) {
-  return safeCall(() => request.delete(`/api/devices/${id}`), null)
-}
-
-// ── 节点列表（供手动控制弹窗使用） ────────────────────────────────────────
+// ── 节点列表（手动控制弹窗用） ─────────────────────────────────────────────
 export function fetchDeviceNodes() {
   return safeCall(
-    () => request.get('/api/devices/list'),
+    () => request.post('/api/devices/list', { pageNum: 1, pageSize: 100 }),
     MOCK_DEVICES.map(d => ({
       deviceId: d.deviceId,
-      name: d.name,
+      name:     d.name,
       location: d.area + ' ' + d.location,
-      status: d.status,
+      status:   d.status,
     }))
   )
 }
