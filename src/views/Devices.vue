@@ -47,6 +47,11 @@ function healthColor(score) {
 // 格式化最后心跳时间
 function formatTime(iso) {
   if (!iso) return '--'
+  // 兼容后端 LocalDateTime 数组格式 [2026,7,3,10,39,6]
+  if (Array.isArray(iso)) {
+    const [y, m, d, h, mi] = iso
+    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')} ${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')}`
+  }
   return iso.replace('T', ' ').slice(0, 16)
 }
 </script>

@@ -2,6 +2,7 @@
  * api/dashboard.js — 首页/数字孪生统计数据
  */
 import request from './request.js'
+import { reportMock } from '../utils/mockStore.js'
 
 function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min }
 
@@ -33,19 +34,22 @@ function genDistrictData() {
   ]
 }
 
-async function safeCall(apiFn, mockData) {
+async function safeCall(apiFn, mockData, endpoint) {
   try { return await apiFn() }
-  catch { return { code: 200, msg: 'mock', data: mockData } }
+  catch {
+    if (endpoint) reportMock(endpoint)
+    return { code: 200, msg: 'mock', data: mockData }
+  }
 }
 
 export function fetchDashboardStats() {
-  return safeCall(() => request.get('/api/dashboard/stats'), MOCK_STATS)
+  return safeCall(() => request.get('/api/dashboard/stats'), MOCK_STATS, 'GET /api/dashboard/stats')
 }
 
 export function fetchEnergyTrend() {
-  return safeCall(() => request.get('/api/dashboard/energy-trend'), genEnergyTrend())
+  return safeCall(() => request.get('/api/dashboard/energy-trend'), genEnergyTrend(), 'GET /api/dashboard/energy-trend')
 }
 
 export function fetchDistrictData() {
-  return safeCall(() => request.get('/api/dashboard/districts'), genDistrictData())
+  return safeCall(() => request.get('/api/dashboard/districts'), genDistrictData(), 'GET /api/dashboard/districts')
 }

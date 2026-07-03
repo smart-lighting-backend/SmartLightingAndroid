@@ -11,6 +11,7 @@ const { username } = useUserInfo()
 
 const showManual = ref(false)
 const showUserMenu = ref(false)
+const showSettings = ref(false)
 
 const navItems = [
   { name: 'dashboard',       label: '数字孪生',  icon: 'grid',     path: '/dashboard' },
@@ -144,8 +145,20 @@ function logout() {
             <svg viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             <span class="badge-dot">3</span>
           </button>
-          <button class="icon-btn">
+          <button class="icon-btn" @click="showSettings = !showSettings">
             <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.5"/></svg>
+            <transition name="fade-up">
+              <div v-if="showSettings" class="settings-menu">
+                <div class="settings-menu-item" @click.stop="router.push('/strategy')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                  策略配置
+                </div>
+                <div class="settings-menu-item" @click.stop="showSettings = false">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                  系统设置
+                </div>
+              </div>
+            </transition>
           </button>
           <button class="icon-btn avatar-btn" @click="showUserMenu = !showUserMenu">
             <svg viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -316,6 +329,33 @@ function logout() {
 }
 .user-menu-item svg { width: 16px; height: 16px; }
 .user-menu-item:hover { background: rgba(0,150,220,0.15); color: #4dd0e1; }
+
+/* 设置下拉菜单 */
+.settings-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 160px;
+  background: rgba(4, 20, 50, 0.96);
+  border: 1px solid rgba(0, 120, 180, 0.4);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  backdrop-filter: blur(16px);
+  z-index: 100;
+}
+.settings-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: rgba(180, 220, 240, 0.85);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.settings-menu-item svg { width: 16px; height: 16px; }
+.settings-menu-item:hover { background: rgba(0,150,220,0.15); color: #4dd0e1; }
 .fade-up-enter-active, .fade-up-leave-active { transition: all 0.2s; }
 .fade-up-enter-from, .fade-up-leave-to { opacity: 0; transform: translateY(6px); }
 

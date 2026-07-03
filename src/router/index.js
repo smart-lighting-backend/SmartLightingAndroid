@@ -92,16 +92,16 @@ const router = createRouter({
 })
 
 // ─── 导航守卫 ─────────────────────────────────────────────────────────────
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, from) => {
   const token = getToken()
 
   if (to.meta.public) {
-    if (token && to.path === '/login') return next('/dashboard')
-    return next()
+    if (token && to.path === '/login') return '/dashboard'
+    return true
   }
 
   if (!token) {
-    return next({ path: '/login', query: { redirect: to.fullPath } })
+    return { path: '/login', query: { redirect: to.fullPath } }
   }
 
   const isMock = token.startsWith('mock-token-dev-')
@@ -115,11 +115,11 @@ router.beforeEach(async (to, from, next) => {
       }
     } catch {
       clearAuth()
-      return next({ path: '/login', query: { redirect: to.fullPath } })
+      return { path: '/login', query: { redirect: to.fullPath } }
     }
   }
 
-  return next()
+  return true
 })
 
 export default router
