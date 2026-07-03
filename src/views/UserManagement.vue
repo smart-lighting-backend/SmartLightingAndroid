@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import {
-  ElInput, ElButton, ElTable, ElTableColumn, ElTag, ElCard, ElDialog, ElForm, ElFormItem, ElSelect, ElOption, ElMessage, ElMessageBox
+  ElInput, ElButton, ElTable, ElTableColumn, ElTag, ElCard, ElDialog, ElForm, ElFormItem, ElSelect, ElOption, ElMessage, ElMessageBox, ElPagination
 } from 'element-plus'
 import { Search, Plus, Edit, Delete } from '@element-plus/icons-vue'
 import { fetchUserList, fetchAllRoles, createUser, updateUser, deleteUser } from '../api/user'
@@ -78,9 +78,9 @@ const loadUsers = async () => {
       ...searchForm.value
     }
     const res = await fetchUserList(query)
-    if (res && res.data) {
-      userList.value = res.data.records || res.data.list || []
-      total.value = res.data.total || 0
+    if (res) {
+      userList.value = res.records || res.list || []
+      total.value = res.total || 0
     }
   } catch (error) {
     ElMessage.error('获取用户列表失败')
@@ -219,6 +219,19 @@ onMounted(() => {
           </template>
         </ElTableColumn>
       </ElTable>
+
+      <div class="pagination-wrapper" v-if="total > 0">
+        <ElPagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          background
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="total"
+          @size-change="loadUsers"
+          @current-change="loadUsers"
+        />
+      </div>
     </div>
 
     <!-- 用户表单弹窗 -->
@@ -293,5 +306,11 @@ onMounted(() => {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
+}
+
+.pagination-wrapper {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
