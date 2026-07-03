@@ -20,7 +20,7 @@ const MOCK_REPLIES = {
 
 export async function sendChatMessage(message) {
   try {
-    const res = await request.post('/api/assistant/chat', { message })
+    const res = await request.post('/api/assistant/chat', { message }, { timeout: 60000 })
     // request.post 返回的是 axios 拦截器解包后的 data
     return res
   } catch (error) {
