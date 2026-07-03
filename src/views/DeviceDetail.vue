@@ -182,9 +182,21 @@ const updateChart = () => {
  xAxis: {
  type: 'category',
  data: historyData.value.map(item => item.time),
+ name: historyData.value.length > 0 ? (historyData.value[0].time.substring(0, 4) + '年') : '',
+ nameLocation: 'start',
+ nameTextStyle: {
+ color: '#909399',
+ fontSize: 12,
+ padding: [0, 5, 0, 0]
+ },
  axisLabel: {
  color: '#909399',
- rotate: timeRange.value === '7d' ? 0 : 45
+ rotate: timeRange.value === '7d' ? 0 : 45,
+ formatter: function(value) {
+ if (!value) return '';
+ const match = value.match(/^\d{4}-(\d{2}-\d{2})/);
+ return match ? match[1] : value;
+ }
  },
  axisLine: {
  lineStyle: {
@@ -337,9 +349,21 @@ const updateTempHumidityChart = () => {
  xAxis: {
  type: 'category',
  data: historyData.value.map(item => item.time),
+ name: historyData.value.length > 0 ? (historyData.value[0].time.substring(0, 4) + '年') : '',
+ nameLocation: 'start',
+ nameTextStyle: {
+ color: '#909399',
+ fontSize: 12,
+ padding: [0, 5, 0, 0]
+ },
  axisLabel: {
  color: '#909399',
- rotate: timeRange.value === '7d' ? 0 : 45
+ rotate: timeRange.value === '7d' ? 0 : 45,
+ formatter: function(value) {
+ if (!value) return '';
+ const match = value.match(/^\d{4}-(\d{2}-\d{2})/);
+ return match ? match[1] : value;
+ }
  },
  axisLine: {
  lineStyle: {
