@@ -1,69 +1,69 @@
 import axios from 'axios'
 
 const mockLatestTelemetry = {
-  DEV001: {
-    deviceId: 'DEV001',
+  'SL-001': {
+    deviceId: 'SL-001',
     illuminance: 1256,
     temperature: 26.8,
     humidity: 45,
     pir: 1,
-    updateTime: '2024-01-15 14:35:00'
+    updateTime: '2026-07-03 14:35:00'
   },
-  DEV002: {
-    deviceId: 'DEV002',
+  'SL-002': {
+    deviceId: 'SL-002',
     illuminance: 890,
     temperature: 27.2,
     humidity: 42,
     pir: 0,
-    updateTime: '2024-01-15 14:34:55'
+    updateTime: '2026-07-03 14:34:55'
   },
-  DEV003: {
-    deviceId: 'DEV003',
+  'SL-003': {
+    deviceId: 'SL-003',
     illuminance: 1520,
     temperature: 25.5,
     humidity: 48,
     pir: 1,
-    updateTime: '2024-01-15 10:15:33'
+    updateTime: '2026-07-03 10:15:33'
   },
-  DEV004: {
-    deviceId: 'DEV004',
+  'SL-004': {
+    deviceId: 'SL-004',
     illuminance: 980,
     temperature: 26.1,
     humidity: 44,
     pir: 0,
-    updateTime: '2024-01-15 14:34:40'
+    updateTime: '2026-07-03 14:34:40'
   },
-  DEV005: {
-    deviceId: 'DEV005',
+  'SL-005': {
+    deviceId: 'SL-005',
     illuminance: 1100,
     temperature: 27.5,
     humidity: 40,
     pir: 1,
-    updateTime: '2024-01-15 14:34:30'
+    updateTime: '2026-07-03 14:34:30'
   },
-  DEV006: {
-    deviceId: 'DEV006',
+  'SL-006': {
+    deviceId: 'SL-006',
     illuminance: 750,
     temperature: 28.0,
     humidity: 38,
     pir: 0,
-    updateTime: '2024-01-14 22:08:12'
+    updateTime: '2026-07-02 22:08:12'
   },
-  DEV007: {
-    deviceId: 'DEV007',
+  'SL-007': {
+    deviceId: 'SL-007',
     illuminance: 1350,
     temperature: 26.0,
     humidity: 46,
     pir: 1,
-    updateTime: '2024-01-15 14:34:50'
+    updateTime: '2026-07-03 14:34:50'
   },
-  DEV008: {
-    deviceId: 'DEV008',
+  'SL-008': {
+    deviceId: 'SL-008',
     illuminance: 920,
     temperature: 26.9,
     humidity: 43,
     pir: 0,
-    updateTime: '2024-01-15 14:34:25'
+    updateTime: '2026-07-03 14:34:25'
   }
 }
 

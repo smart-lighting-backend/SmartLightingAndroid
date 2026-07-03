@@ -1,5 +1,6 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
+import { ElMessage } from 'element-plus'
 import { fetchAlarmPage, ALARM_STATUS_MAP, ALARM_LEVEL_MAP, ALARM_TYPE_MAP } from '../api/warnings.js'
 
 const alarms  = ref([])
@@ -81,7 +82,63 @@ const pageNumbers = computed(() => {
 // 格式化时间显示
 function formatTime(iso) {
   if (!iso) return '--'
-  return iso.replace('T', ' ').slice(0, 16)
+  try {
+    // 如果是时间戳数字或字符串数字
+    if (typeof iso === 'number' || !isNaN(Number(iso))) {
+      return new Date(Number(iso)).toLocaleString('zh-CN', { hour12: false })
+    }
+    // ISO 格式: 替换 T 为空格, 去掉毫秒和时区后缀
+    return iso
+      .replace('T', ' ')
+      .replace(/\.\d+/, '')        // 去掉毫秒 .123
+      .replace(/[Zz]$/, '')        // 去掉末尾 Z
+      .replace(/\+.*$/, '')        // 去掉时区偏移 +08:00
+      .slice(0, 19)                // 保留 2023-10-27 14:32:05 完整格式
+  } catch {
+    return iso || '--'
+  }
+}
+
+// 导出 CSV 报表
+function handleExport() {
+  const data = alarms.value
+  if (!data.length) {
+    ElMessage.warning('没有可导出的告警数据')
+    return
+  }
+
+  // 表头
+  const headers = ['告警ID', '设备编号', '级别', '告警类型', '告警原因', '发生时间', '恢复时间', '状态', '处理人']
+  // 数据行
+  const rows = data.map(a => [
+    a.id,
+    a.deviceId,
+    ALARM_LEVEL_MAP[a.level]?.label || a.level,
+    ALARM_TYPE_MAP[a.type] || a.type,
+    a.reason || '--',
+    formatTime(a.startAt),
+    a.recoverAt ? formatTime(a.recoverAt) : '--',
+    ALARM_STATUS_MAP[a.status]?.label || a.status,
+    a.handler || '--',
+  ])
+
+  // 组装 CSV
+  const csvContent = [headers, ...rows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+
+  // 添加 BOM 让 Excel 正确识别 UTF-8
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `告警报表_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.csv`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+
+  ElMessage.success(`已导出 ${data.length} 条告警记录`)
 }
 
 // 告警类型中文显示
@@ -100,7 +157,7 @@ onMounted(loadData)
         <h1 class="page-title">告警列表</h1>
         <p class="page-sub">实时监控全域设备状态，快速定位并处理异常事件。</p>
       </div>
-      <button class="export-btn">
+      <button class="export-btn" @click="handleExport">
         <svg viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         导出报表
       </button>
@@ -272,7 +329,7 @@ onMounted(loadData)
 .td-device .device-link:hover { color: #4dd0e1; }
 .td-type { white-space: nowrap; }
 .td-reason { max-width: 200px; }
-.td-time { white-space: nowrap; font-size: 12px; color: rgba(140,190,220,0.7); }
+.td-time { white-space: nowrap; font-size: 13px; color: rgba(140,190,220,0.75); font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; letter-spacing: 0.3px; }
 .td-handler { white-space: nowrap; font-size: 12px; }
 .level-badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
 .level-badge.critical { background: rgba(220,50,50,0.2); border: 1px solid rgba(220,80,80,0.4); color: #ff7070; }

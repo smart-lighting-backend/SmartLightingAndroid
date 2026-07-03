@@ -53,9 +53,17 @@ const MOCK_ALARMS = [
 
 async function safeCall(apiFn, mockData) {
   try {
-    return await apiFn()
+    const result = await apiFn()
+    // 后端返回空数据时降级到 Mock
+    const isEmpty = result === null || result === undefined ||
+                   (Array.isArray(result) && result.length === 0) ||
+                   (typeof result === 'object' && result.data !== undefined && Array.isArray(result.data) && result.data.length === 0)
+    if (isEmpty) return { code: 200, msg: 'mock', data: mockData }
+    return result
   } catch (e) {
-    const isNetworkErr = !e?.response && !e?.bizCode
+    // 网络不可达 或 代理 502/503/504 时降级到 Mock
+    const httpStatus = e?.response?.status
+    const isNetworkErr = (!e?.response && !e?.bizCode) || (httpStatus != null && httpStatus >= 502 && httpStatus <= 504)
     if (isNetworkErr) return { code: 200, msg: 'mock', data: mockData }
     throw e
   }

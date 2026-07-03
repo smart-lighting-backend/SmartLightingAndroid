@@ -22,7 +22,7 @@ import {
   MapLocation,
   Clock,
   Monitor,
-  CircleCheck,
+  CheckCircle,
   Loading,
   Document
 } from '@element-plus/icons-vue';
@@ -208,7 +208,7 @@ onMounted(() => {
 
       <ElCard class="device-card" v-if="alarmDetail.device_info">
         <h3 class="section-title">
-          <Monitor style="margin-right: 8px;" />
+          <Server style="margin-right: 8px;" />
           关联设备信息
         </h3>
         <ElRow :gutter="20">
@@ -261,7 +261,7 @@ onMounted(() => {
 
       <ElCard class="log-card" v-if="alarmDetail.handle_log && alarmDetail.handle_log.length > 0">
         <h3 class="section-title">
-          <CircleCheck style="margin-right: 8px;" />
+          <CheckCircle style="margin-right: 8px;" />
           处理日志
         </h3>
         <ElTable :data="alarmDetail.handle_log" style="width: 100%" border>
