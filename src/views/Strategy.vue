@@ -2,17 +2,62 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchStrategyList, toggleStrategy, deleteStrategy } from '../api/strategy.js'
+import { ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElInputNumber, ElButton, ElPagination, ElIcon } from 'element-plus'
+import { Search, Refresh } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const strategies = ref([])
 const loading = ref(false)
 
+const searchForm = ref({
+  name: '',
+  policyType: '',
+  enabled: null,
+  priorityMin: null,
+  priorityMax: null,
+  effectiveTime: ''
+})
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
 async function loadData() {
   loading.value = true
-  const res = await fetchStrategyList()
-  // 新接口直接返回数组
-  strategies.value = Array.isArray(res.data) ? res.data : (res.data?.list || [])
+  const query = {
+    page: currentPage.value,
+    size: pageSize.value,
+    name: searchForm.value.name || undefined,
+    policyType: searchForm.value.policyType || undefined,
+    enabled: searchForm.value.enabled !== null ? searchForm.value.enabled : undefined,
+    priorityMin: searchForm.value.priorityMin !== null ? searchForm.value.priorityMin : undefined,
+    priorityMax: searchForm.value.priorityMax !== null ? searchForm.value.priorityMax : undefined,
+    effectiveTime: searchForm.value.effectiveTime || undefined,
+  }
+  
+  try {
+    const res = await fetchStrategyList(query)
+    if (res && res.data) {
+      strategies.value = res.data.records || res.data.list || []
+      total.value = res.data.total || 0
+    } else {
+      strategies.value = Array.isArray(res) ? res : []
+    }
+  } catch (error) {
+    console.error(error)
+  }
   loading.value = false
+}
+
+function handleSearch() {
+  currentPage.value = 1
+  loadData()
+}
+
+function handleReset() {
+  searchForm.value = {
+    name: '', policyType: '', enabled: null, priorityMin: null, priorityMax: null, effectiveTime: ''
+  }
+  handleSearch()
 }
 
 onMounted(loadData)
@@ -41,6 +86,40 @@ async function remove(s) {
       </button>
     </div>
 
+    <!-- 搜索表单 -->
+    <div class="search-bar">
+      <ElForm :inline="true" :model="searchForm" class="search-form">
+        <ElFormItem label="名称">
+          <ElInput v-model="searchForm.name" placeholder="模糊查询" clearable style="width: 140px" />
+        </ElFormItem>
+        <ElFormItem label="类型">
+          <ElSelect v-model="searchForm.policyType" placeholder="全部" clearable style="width: 120px">
+            <ElOption label="时间(TIME)" value="TIME" />
+            <ElOption label="传感(SENSOR)" value="SENSOR" />
+            <ElOption label="场景(SCENE)" value="SCENE" />
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem label="状态">
+          <ElSelect v-model="searchForm.enabled" placeholder="全部" clearable style="width: 100px">
+            <ElOption label="已启用" :value="true" />
+            <ElOption label="已停用" :value="false" />
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem label="优先级">
+          <ElInputNumber v-model="searchForm.priorityMin" :min="1" :max="100" placeholder="最小" style="width: 80px" :controls="false" />
+          <span style="margin: 0 8px; color: rgba(255,255,255,0.5)">-</span>
+          <ElInputNumber v-model="searchForm.priorityMax" :min="1" :max="100" placeholder="最大" style="width: 80px" :controls="false" />
+        </ElFormItem>
+        <ElFormItem label="时段">
+          <ElInput v-model="searchForm.effectiveTime" placeholder="如: 22:00" clearable style="width: 120px" />
+        </ElFormItem>
+        <ElFormItem>
+          <ElButton type="primary" @click="handleSearch"><ElIcon><Search /></ElIcon>&nbsp;查询</ElButton>
+          <ElButton @click="handleReset"><ElIcon><Refresh /></ElIcon>&nbsp;重置</ElButton>
+        </ElFormItem>
+      </ElForm>
+    </div>
+
     <div class="strategy-list">
       <div v-if="loading" class="loading-state">加载中...</div>
       <div v-for="s in strategies" :key="s.id" class="strategy-card">
@@ -67,12 +146,34 @@ async function remove(s) {
         </div>
       </div>
     </div>
+    
+    <!-- 分页 -->
+    <div class="pagination-wrapper" v-if="total > 0">
+      <ElPagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :page-sizes="[10, 20, 50]"
+        background
+        layout="total, sizes, prev, pager, next, jumper"
+        :total="total"
+        @size-change="loadData"
+        @current-change="loadData"
+      />
+    </div>
   </div>
 </template>
 
 <style scoped>
 .strategy-page { padding: 24px 28px; }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+.search-bar {
+  background: rgba(8,20,45,0.6);
+  border: 1px solid rgba(0,120,200,0.15);
+  border-radius: 8px;
+  padding: 16px 20px 0 20px;
+  margin-bottom: 16px;
+}
+.search-form :deep(.el-form-item__label) { color: #8cbedc; }
 .page-title { font-size: 22px; font-weight: 700; color: #e0f4ff; margin-bottom: 4px; }
 .page-sub { font-size: 13px; color: rgba(140,190,220,0.6); }
 .create-btn {
@@ -129,5 +230,11 @@ async function remove(s) {
 .sc-btn.edit { background: rgba(0,80,140,0.2); border: 1px solid rgba(0,120,200,0.3); color: rgba(140,200,230,0.9); }
 .sc-btn.edit:hover { background: rgba(0,120,200,0.2); color: #4dd0e1; }
 .sc-btn.del { background: rgba(180,30,30,0.1); border: 1px solid rgba(200,60,60,0.25); color: rgba(220,100,100,0.8); }
+.sc-btn.del { background: rgba(180,30,30,0.1); border: 1px solid rgba(200,60,60,0.25); color: rgba(220,100,100,0.8); }
 .sc-btn.del:hover { background: rgba(180,30,30,0.2); color: #ff7070; }
+.pagination-wrapper {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
 </style>
