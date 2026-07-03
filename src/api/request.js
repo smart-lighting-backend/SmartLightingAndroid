@@ -9,7 +9,9 @@ import axios from 'axios'
 import { getToken, clearAuth } from './auth.js'
 
 const request = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  // 开发模式下 baseURL 留空，由 Vite proxy 转发 /api 到 localhost:8080
+  // 生产模式可通过 .env.production 设置 VITE_API_BASE_URL
+  baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 10000,
 })
 

@@ -1,133 +1,154 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { getUserInfo, clearAuth } from '../api/auth.js'
+import { useRoute, useRouter } from 'vue-router'
+import { useUserInfo } from '../composables/useUserInfo.js'
+import { clearAuth } from '../api/auth.js'
+import ManualControlModal from '../components/ManualControlModal.vue'
 
-const router = useRouter()
 const route  = useRoute()
+const router = useRouter()
+const { username } = useUserInfo()
 
-const userInfo = ref(getUserInfo() || { username: 'Admin User', role: 'System Operator' })
+const showManual = ref(false)
+const showUserMenu = ref(false)
 
 const navItems = [
-  { name: '数字孪生', path: '/digital-twin', icon: 'twin' },
-  { name: '设备管理', path: '/devices',      icon: 'device' },
-  { name: '数据报表', path: '/reports',      icon: 'report' },
-  { name: '告警中心', path: '/alerts',       icon: 'alert' },
-  { name: '策略配置', path: '/strategy',     icon: 'strategy' },
-  { name: '智能助手', path: '/ai-assistant', icon: 'ai' },
-  { name: '系统日志', path: '/system-logs',  icon: 'log' },
+  { name: 'dashboard',       label: '数字孪生',  icon: 'grid',     path: '/dashboard' },
+  { name: 'devices',         label: '设备管理',  icon: 'bulb',     path: '/devices' },
+  { name: 'analytics',       label: '数据报表',  icon: 'chart',    path: '/analytics' },
+  { name: 'warning',         label: '告警中心',  icon: 'warning',  path: '/warning' },
+  { name: 'strategy',        label: '策略配置',  icon: 'strategy', path: '/strategy' },
+  { name: 'assistant',       label: '智能助手',  icon: 'robot',    path: '/assistant' },
+  { name: 'logs',            label: '系统日志',  icon: 'history',  path: '/logs' },
 ]
 
-const isActive = (path) => route.path === path
+const activeNav = computed(() => {
+  const p = route.path
+  if (p.startsWith('/devices')) return 'devices'
+  if (p.startsWith('/strategy')) return 'strategy'
+  const match = navItems.find(n => p === n.path)
+  return match?.name || 'dashboard'
+})
 
-function navigate(path) {
-  router.push(path)
-}
-
-function handleLogout() {
+function logout() {
   clearAuth()
   router.push('/login')
 }
-
-// 顶部 Tab（根据当前路由动态显示）
-const topTabs = computed(() => {
-  const p = route.path
-  if (p === '/digital-twin') return ['数字孪生', '能耗看板']
-  if (p === '/reports')      return ['实时监控', '能耗看板']
-  if (p === '/system-logs')  return ['实时监控', '能耗看板']
-  return []
-})
-
-const pageTitle = computed(() => {
-  const item = navItems.find(n => n.path === route.path)
-  return item?.name || '智慧路灯节能系统'
-})
 </script>
 
 <template>
-  <div class="app-shell">
-    <!-- ── 左侧导航 ── -->
+  <div class="main-layout">
+    <!-- ═══ 左侧导航栏 ═══════════════════════════════════════════ -->
     <aside class="sidebar">
-      <div class="sidebar-logo">
-        <div class="logo-icon-wrap">
-          <svg viewBox="0 0 24 24" fill="none" class="logo-svg">
-            <circle cx="12" cy="12" r="10" stroke="#4dd0e1" stroke-width="1.5" opacity="0.4"/>
-            <path d="M12 3C8.13 3 5 6.13 5 10c0 2.38 1.19 4.47 3 5.74V18c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7z" fill="#4dd0e1" opacity="0.9"/>
-            <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1z" fill="#4dd0e1" opacity="0.7"/>
-          </svg>
+      <div class="sidebar-brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7z" fill="currentColor"/><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1z" fill="currentColor" opacity="0.7"/></svg>
         </div>
-        <div class="logo-text">
-          <span class="logo-main">智慧路灯管理</span>
-          <span class="logo-sub">智能节能系统</span>
+        <div class="brand-text">
+          <span class="brand-title">智慧路灯管理</span>
+          <span class="brand-sub">智能节能系统</span>
         </div>
       </div>
 
       <nav class="sidebar-nav">
-        <div
+        <router-link
           v-for="item in navItems"
-          :key="item.path"
+          :key="item.name"
+          :to="item.path"
           class="nav-item"
-          :class="{ active: isActive(item.path) }"
-          @click="navigate(item.path)"
+          :class="{ active: activeNav === item.name }"
         >
-          <!-- Icons -->
-          <span class="nav-icon">
-            <svg v-if="item.icon==='twin'" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.8"/><rect x="13" y="3" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.5"/><rect x="3" y="13" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.5"/><rect x="13" y="13" width="8" height="8" rx="1.5" fill="currentColor" opacity="0.3"/></svg>
-            <svg v-else-if="item.icon==='device'" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" fill="currentColor"/><path d="M12 2a10 10 0 100 20A10 10 0 0012 2zm0 18a8 8 0 110-16 8 8 0 010 16z" fill="currentColor" opacity="0.6"/></svg>
-            <svg v-else-if="item.icon==='report'" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 14l3-3 3 3 4-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <svg v-else-if="item.icon==='alert'" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 20h20L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="17" r="0.8" fill="currentColor"/></svg>
-            <svg v-else-if="item.icon==='strategy'" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5.64 5.64l1.41 1.41M16.95 16.95l1.41 1.41M5.64 18.36l1.41-1.41M16.95 7.05l1.41-1.41" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <svg v-else-if="item.icon==='ai'" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 10h8M8 14h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <svg v-else-if="item.icon==='log'" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          </span>
-          <span class="nav-label">{{ item.name }}</span>
-          <span v-if="isActive(item.path)" class="nav-active-bar" />
-        </div>
+          <!-- Grid icon -->
+          <svg v-if="item.icon === 'grid'" class="nav-icon" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="7" height="7" rx="1" fill="currentColor" opacity="0.85"/>
+            <rect x="14" y="3" width="7" height="7" rx="1" fill="currentColor" opacity="0.85"/>
+            <rect x="3" y="14" width="7" height="7" rx="1" fill="currentColor" opacity="0.85"/>
+            <rect x="14" y="14" width="7" height="7" rx="1" fill="currentColor" opacity="0.85"/>
+          </svg>
+          <!-- Bulb icon -->
+          <svg v-else-if="item.icon === 'bulb'" class="nav-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7z" fill="currentColor" opacity="0.85"/>
+            <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1z" fill="currentColor" opacity="0.6"/>
+          </svg>
+          <!-- Chart icon -->
+          <svg v-else-if="item.icon === 'chart'" class="nav-icon" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="12" width="4" height="9" rx="1" fill="currentColor" opacity="0.6"/>
+            <rect x="10" y="7" width="4" height="14" rx="1" fill="currentColor" opacity="0.8"/>
+            <rect x="17" y="3" width="4" height="18" rx="1" fill="currentColor"/>
+          </svg>
+          <!-- Warning icon -->
+          <svg v-else-if="item.icon === 'warning'" class="nav-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L2 20h20L12 2z" fill="currentColor" opacity="0.2" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M12 9v5M12 16.5v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <!-- Strategy icon -->
+          <svg v-else-if="item.icon === 'strategy'" class="nav-icon" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="3" fill="currentColor"/>
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5.64 5.64l2.12 2.12M16.24 16.24l2.12 2.12M5.64 18.36l2.12-2.12M16.24 7.76l2.12-2.12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <!-- Robot icon -->
+          <svg v-else-if="item.icon === 'robot'" class="nav-icon" viewBox="0 0 24 24" fill="none">
+            <rect x="4" y="8" width="16" height="12" rx="2" fill="currentColor" opacity="0.2" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="9" cy="13" r="1.5" fill="currentColor"/>
+            <circle cx="15" cy="13" r="1.5" fill="currentColor"/>
+            <path d="M9 17h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M12 8V5M10 5h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <!-- History icon -->
+          <svg v-else-if="item.icon === 'history'" class="nav-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0A9 9 0 0 0 3 12z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+
+          <span class="nav-label">{{ item.label }}</span>
+          <span v-if="item.name === 'warning'" class="nav-badge">3</span>
+        </router-link>
       </nav>
 
-      <div class="sidebar-user">
+      <!-- 底部用户信息 -->
+      <div class="sidebar-user" @click="showUserMenu = !showUserMenu">
         <div class="user-avatar">
-          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="currentColor" opacity="0.8"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7" fill="currentColor" opacity="0.5"/></svg>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 12c2.7 0 4-1.8 4-4s-1.3-4-4-4-4 1.8-4 4 1.3 4 4 4zm0 2c-2.67 0-8 1.34-8 4v1a1 1 0 001 1h14a1 1 0 001-1v-1c0-2.66-5.33-4-8-4z" fill="currentColor"/></svg>
         </div>
         <div class="user-info">
-          <span class="user-name">{{ userInfo.username || 'Admin User' }}</span>
-          <span class="user-role">System Operator</span>
+          <span class="user-name">{{ username }}</span>
+          <span class="user-role">系统管理员</span>
         </div>
+        <transition name="fade-up">
+          <div v-if="showUserMenu" class="user-menu">
+            <div class="user-menu-item" @click.stop="logout">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              退出登录
+            </div>
+          </div>
+        </transition>
       </div>
     </aside>
 
-    <!-- ── 主内容区 ── -->
-    <div class="main-area">
-      <!-- 顶部 Header -->
-      <header class="top-header">
-        <div class="header-left">
-          <span class="header-title">智慧路灯节能系统</span>
-          <nav class="header-tabs" v-if="topTabs.length">
-            <a
-              v-for="(tab, i) in topTabs"
-              :key="tab"
-              class="header-tab"
-              :class="{ active: i === 0 }"
-            >{{ tab }}</a>
+    <!-- ═══ 右侧主体 ════════════════════════════════════════════ -->
+    <div class="main-body">
+      <!-- 顶部导航栏 -->
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <span class="top-brand">智慧路灯节能系统</span>
+          <nav class="top-nav">
+            <router-link to="/dashboard" class="top-nav-link" :class="{ active: activeNav === 'dashboard' || activeNav === 'analytics' }">实时监控</router-link>
+            <router-link to="/analytics" class="top-nav-link" :class="{ active: activeNav === 'analytics' }">能耗看板</router-link>
           </nav>
         </div>
-        <div class="header-right">
-          <div class="search-box" v-if="route.path !== '/ai-assistant'">
-            <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M16.5 16.5L21 21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <input type="text" placeholder="搜索设备/区域..." />
-          </div>
-          <button class="manual-btn">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M12 2a10 10 0 110 20A10 10 0 0112 2z" stroke="currentColor" stroke-width="1.5"/><path d="M12 6v6l4 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <div class="top-bar-right">
+          <button class="manual-btn" @click="showManual = true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h10M4 18h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             手动控制
           </button>
-          <button class="icon-btn">
+          <button class="icon-btn" @click="$router.push('/warning')">
             <svg viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="badge-dot">3</span>
           </button>
           <button class="icon-btn">
-            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5.64 5.64l1.41 1.41M16.95 16.95l1.41 1.41M5.64 18.36l1.41-1.41M16.95 7.05l1.41-1.41" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.5"/></svg>
           </button>
-          <button class="icon-btn user-btn" @click="handleLogout">
-            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <button class="icon-btn avatar-btn" @click="showUserMenu = !showUserMenu">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           </button>
         </div>
       </header>
@@ -137,81 +158,68 @@ const pageTitle = computed(() => {
         <RouterView />
       </main>
     </div>
+
+    <!-- 手动控制弹窗 -->
+    <ManualControlModal v-if="showManual" @close="showManual = false" />
   </div>
 </template>
 
 <style scoped>
-.app-shell {
+/* ─── 整体布局 ─────────────────────────────────────────────────────────── */
+.main-layout {
   display: flex;
   width: 100vw;
   height: 100vh;
-  background: #050d1a;
+  background: #060e1f;
   overflow: hidden;
-  font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
 }
 
-/* ── 侧边栏 ── */
+/* ─── 侧边栏 ───────────────────────────────────────────────────────────── */
 .sidebar {
   width: 200px;
-  flex-shrink: 0;
-  background: #071525;
-  border-right: 1px solid rgba(0, 150, 220, 0.12);
+  min-width: 200px;
+  height: 100vh;
+  background: linear-gradient(180deg, #081428 0%, #060e1f 100%);
+  border-right: 1px solid rgba(0, 120, 200, 0.15);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+  z-index: 10;
 }
 
-.sidebar-logo {
+/* 品牌区 */
+.sidebar-brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 20px 16px 18px;
-  border-bottom: 1px solid rgba(0, 150, 220, 0.1);
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid rgba(0, 120, 200, 0.1);
 }
-
-.logo-icon-wrap {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: rgba(0, 150, 220, 0.15);
+.brand-logo {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, rgba(0, 150, 220, 0.3), rgba(0, 80, 160, 0.5));
   border: 1px solid rgba(77, 208, 225, 0.3);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
-
-.logo-svg {
-  width: 20px;
-  height: 20px;
-}
-
-.logo-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.logo-main {
-  font-size: 13px;
-  font-weight: 700;
-  color: #e0f4ff;
-  line-height: 1.3;
-  letter-spacing: 0.5px;
-}
-
-.logo-sub {
-  font-size: 10px;
-  color: rgba(77, 208, 225, 0.6);
-  letter-spacing: 0.3px;
-}
+.brand-logo svg { width: 20px; height: 20px; color: #4dd0e1; }
+.brand-text { display: flex; flex-direction: column; }
+.brand-title { font-size: 13px; font-weight: 700; color: #e0f4ff; line-height: 1.3; }
+.brand-sub { font-size: 10px; color: rgba(120, 180, 220, 0.6); margin-top: 1px; }
 
 /* 导航 */
 .sidebar-nav {
   flex: 1;
-  padding: 12px 8px;
+  padding: 12px 10px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
-
 .nav-item {
   display: flex;
   align-items: center;
@@ -219,226 +227,196 @@ const pageTitle = computed(() => {
   padding: 10px 12px;
   border-radius: 8px;
   cursor: pointer;
+  color: rgba(140, 190, 220, 0.7);
+  text-decoration: none;
+  font-size: 13px;
   transition: all 0.2s ease;
   position: relative;
-  color: rgba(160, 200, 230, 0.7);
-  margin-bottom: 2px;
-  user-select: none;
 }
-
 .nav-item:hover {
-  background: rgba(0, 150, 220, 0.1);
-  color: rgba(200, 230, 255, 0.9);
+  background: rgba(0, 120, 200, 0.12);
+  color: rgba(180, 220, 240, 0.9);
 }
-
 .nav-item.active {
-  background: rgba(0, 120, 200, 0.2);
+  background: rgba(0, 150, 220, 0.18);
   color: #4dd0e1;
-  border: 1px solid rgba(0, 150, 220, 0.25);
+  border: 1px solid rgba(77, 208, 225, 0.2);
 }
-
-.nav-icon {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-}
-.nav-icon svg { width: 100%; height: 100%; }
-
-.nav-label {
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.3px;
-}
-
-.nav-active-bar {
+.nav-item.active::before {
+  content: '';
   position: absolute;
-  right: 0;
+  left: 0;
   top: 20%;
   bottom: 20%;
   width: 3px;
   background: #4dd0e1;
-  border-radius: 2px 0 0 2px;
+  border-radius: 0 2px 2px 0;
 }
-
-/* 用户信息 */
-.sidebar-user {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
-  border-top: 1px solid rgba(0, 150, 220, 0.1);
-}
-
-.user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: rgba(0, 150, 220, 0.2);
-  border: 1px solid rgba(77, 208, 225, 0.3);
+.nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+.nav-label { flex: 1; }
+.nav-badge {
+  background: #e53935;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  color: #4dd0e1;
+  padding: 0 4px;
 }
-.user-avatar svg { width: 18px; height: 18px; }
 
-.user-info {
+/* 底部用户 */
+.sidebar-user {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(0, 120, 200, 0.1);
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+}
+.sidebar-user:hover { background: rgba(0,120,200,0.08); }
+.user-avatar {
+  width: 32px; height: 32px;
+  background: rgba(0, 120, 200, 0.25);
+  border: 1px solid rgba(77, 208, 225, 0.3);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.user-avatar svg { width: 18px; height: 18px; color: #4dd0e1; }
+.user-info { display: flex; flex-direction: column; flex: 1; }
+.user-name { font-size: 12px; font-weight: 600; color: #d0eaf8; }
+.user-role { font-size: 10px; color: rgba(120, 180, 210, 0.55); margin-top: 1px; }
+
+.user-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 10px; right: 10px;
+  background: rgba(4, 20, 50, 0.96);
+  border: 1px solid rgba(0, 120, 180, 0.4);
+  border-radius: 8px;
   overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  backdrop-filter: blur(16px);
+  z-index: 100;
 }
-
-.user-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: #c8e6ff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: rgba(180, 220, 240, 0.85);
+  cursor: pointer;
+  transition: background 0.2s;
 }
+.user-menu-item svg { width: 16px; height: 16px; }
+.user-menu-item:hover { background: rgba(0,150,220,0.15); color: #4dd0e1; }
+.fade-up-enter-active, .fade-up-leave-active { transition: all 0.2s; }
+.fade-up-enter-from, .fade-up-leave-to { opacity: 0; transform: translateY(6px); }
 
-.user-role {
-  font-size: 10px;
-  color: rgba(100, 160, 200, 0.6);
-}
-
-/* ── 顶部 Header ── */
-.main-area {
+/* ─── 主体区域 ─────────────────────────────────────────────────────────── */
+.main-body {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0;
 }
 
-.top-header {
+/* ─── 顶部导航栏 ───────────────────────────────────────────────────────── */
+.top-bar {
   height: 56px;
-  flex-shrink: 0;
+  min-height: 56px;
+  background: rgba(6, 14, 31, 0.95);
+  border-bottom: 1px solid rgba(0, 120, 200, 0.15);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  background: rgba(7, 21, 37, 0.95);
-  border-bottom: 1px solid rgba(0, 150, 220, 0.12);
-  gap: 16px;
+  backdrop-filter: blur(12px);
+  z-index: 9;
 }
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
-
-.header-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #e0f4ff;
+.top-bar-left { display: flex; align-items: center; gap: 32px; }
+.top-brand {
+  font-size: 15px;
+  font-weight: 700;
+  color: #d0eaf8;
+  letter-spacing: 1px;
   white-space: nowrap;
 }
-
-.header-tabs {
-  display: flex;
-  gap: 4px;
-}
-
-.header-tab {
+.top-nav { display: flex; gap: 4px; }
+.top-nav-link {
   padding: 5px 14px;
-  font-size: 13px;
-  color: rgba(160, 200, 230, 0.65);
-  cursor: pointer;
   border-radius: 6px;
-  transition: all 0.2s;
+  font-size: 13px;
+  color: rgba(140, 190, 220, 0.7);
   text-decoration: none;
-  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
 }
+.top-nav-link:hover { color: #d0eaf8; background: rgba(0,120,200,0.1); }
+.top-nav-link.active { color: #4dd0e1; background: rgba(0, 150, 220, 0.15); }
 
-.header-tab.active {
-  color: #4dd0e1;
-  border-bottom-color: #4dd0e1;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  height: 34px;
-  background: rgba(0, 30, 60, 0.6);
-  border: 1px solid rgba(0, 120, 180, 0.3);
-  border-radius: 8px;
-  color: rgba(100, 170, 210, 0.5);
-  min-width: 180px;
-}
-
-.search-box svg {
-  width: 15px;
-  height: 15px;
-  flex-shrink: 0;
-}
-
-.search-box input {
-  background: none;
-  border: none;
-  outline: none;
-  font-size: 12px;
-  color: rgba(160, 210, 240, 0.8);
-  width: 100%;
-}
-.search-box input::placeholder { color: rgba(100, 160, 200, 0.45); }
-
+.top-bar-right { display: flex; align-items: center; gap: 8px; }
 .manual-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 14px;
-  height: 34px;
-  background: rgba(0, 100, 180, 0.25);
-  border: 1px solid rgba(0, 150, 220, 0.5);
+  padding: 7px 16px;
+  background: linear-gradient(135deg, #0077cc, #0099e6);
+  border: none;
   border-radius: 8px;
-  color: #4dd0e1;
-  font-size: 12px;
-  font-weight: 600;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  white-space: nowrap;
   transition: all 0.2s;
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(0, 150, 230, 0.3);
 }
-.manual-btn:hover {
-  background: rgba(0, 130, 200, 0.35);
-  border-color: #4dd0e1;
-}
-.manual-btn svg { width: 14px; height: 14px; }
+.manual-btn svg { width: 15px; height: 15px; }
+.manual-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 18px rgba(0, 150, 230, 0.5); }
 
 .icon-btn {
-  width: 34px;
-  height: 34px;
+  width: 36px; height: 36px;
+  background: rgba(0, 80, 140, 0.2);
+  border: 1px solid rgba(0, 120, 200, 0.2);
+  border-radius: 8px;
+  color: rgba(140, 190, 220, 0.8);
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 30, 60, 0.4);
-  border: 1px solid rgba(0, 120, 180, 0.2);
-  border-radius: 8px;
-  color: rgba(160, 210, 240, 0.7);
-  cursor: pointer;
+  position: relative;
   transition: all 0.2s;
 }
-.icon-btn:hover {
-  background: rgba(0, 80, 150, 0.3);
-  color: #4dd0e1;
-  border-color: rgba(77, 208, 225, 0.4);
+.icon-btn svg { width: 18px; height: 18px; }
+.icon-btn:hover { background: rgba(0,120,200,0.25); color: #4dd0e1; }
+.badge-dot {
+  position: absolute;
+  top: 4px; right: 4px;
+  background: #e53935;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2px;
+  line-height: 1;
 }
-.icon-btn svg { width: 16px; height: 16px; }
 
-/* ── 页面内容 ── */
+/* ─── 页面内容 ─────────────────────────────────────────────────────────── */
 .page-content {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 </style>
