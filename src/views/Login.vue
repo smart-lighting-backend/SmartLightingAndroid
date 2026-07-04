@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { login, saveAuth, getRoleLabel } from '../api/auth.js'
+import { login, saveAuth, savePermissions, saveMenus, getRoleLabel } from '../api/auth.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -95,10 +95,39 @@ onMounted(() => { cleanupCanvas = initCanvas() })
 onUnmounted(() => { cleanupCanvas?.() })
 
 // ─── Mock 降级（后端不可用时自动触发，对接真实接口后无需改动） ──────────────
+const MOCK_PERMISSIONS = [
+  'dashboard:read', 'device:read', 'device:create', 'device:update', 'device:delete', 'device:control',
+  'telemetry:read', 'energy:read', 'alarm:read', 'alarm:handle', 'alarm:delete',
+  'policy:read', 'policy:create', 'policy:update', 'policy:delete',
+  'assistant:read', 'audit:read', 'user:read', 'user:create', 'user:update', 'user:delete',
+  'permission:read', 'permission:create', 'permission:update', 'permission:delete',
+  'menu:read', 'menu:create', 'menu:update', 'menu:delete'
+]
+
+const MOCK_MENUS = [
+  { id: 1, name: '数字孪生', path: '/dashboard', icon: 'grid', sort: 1, children: [] },
+  { id: 2, name: '设备管理', path: '/devices', icon: 'bulb', sort: 2, children: [] },
+  { id: 3, name: '数据报表', path: '/analytics', icon: 'chart', sort: 3, children: [] },
+  { id: 4, name: '能耗走势', path: '/energy', icon: 'energy', sort: 4, children: [] },
+  { id: 5, name: '告警中心', path: '/warning', icon: 'warning', sort: 5, children: [] },
+  { id: 6, name: '策略配置', path: '/strategy', icon: 'strategy', sort: 6, children: [] },
+  { id: 7, name: '智能助手', path: '/assistant', icon: 'robot', sort: 7, children: [] },
+  { id: 8, name: '系统日志', path: '/logs', icon: 'history', sort: 8, children: [] },
+  { id: 9, name: '用户管理', path: '/users', icon: 'user', sort: 9, children: [] },
+  {
+    id: 10, name: '系统管理', path: '/system', icon: 'setting', sort: 10, children: [
+      { id: 11, name: '权限管理', path: '/system/permission', icon: '', sort: 1, children: [] },
+      { id: 12, name: '菜单管理', path: '/system/menu', icon: '', sort: 2, children: [] }
+    ]
+  }
+]
+
 function mockLogin(username) {
   return {
     token: `mock-token-dev-${Date.now()}`,
     userInfo: { username, roleCode: 'SUPER_ADMIN', roleName: '系统管理员（Mock）' },
+    permissions: MOCK_PERMISSIONS,
+    menus: MOCK_MENUS,
   }
 }
 
@@ -116,7 +145,7 @@ async function handleLogin() {
     try {
       // ① 调用真实后端：POST /api/auth/login { username, password }
       const res = await login(form.username, form.password)
-      // res = { code: 200, msg: 'success', data: { token, username, roleCode } }
+      // res = { code: 200, msg: 'success', data: { token, username, roleCode, permissions, menus } }
       token    = res.data.token
       userInfo = {
         username: res.data.username,
@@ -124,6 +153,9 @@ async function handleLogin() {
         roleName: getRoleLabel(res.data.roleCode),
       }
       if (!token) throw new Error('未收到有效 Token')
+      // 保存权限列表和菜单树
+      savePermissions(res.data.permissions || [], form.remember)
+      saveMenus(res.data.menus || [], form.remember)
     } catch (apiErr) {
       // ② 判断"后端不可用"：网络连接失败 或 服务器 5xx 错误 → Mock 降级
       //    业务错误（401 密码错误、400 参数错误）→ 直接抛出显示给用户
@@ -135,6 +167,9 @@ async function handleLogin() {
         const mock = mockLogin(form.username)
         token    = mock.token
         userInfo = mock.userInfo
+        // Mock 也保存权限和菜单
+        savePermissions(mock.permissions || [], form.remember)
+        saveMenus(mock.menus || [], form.remember)
       } else {
         throw apiErr
       }

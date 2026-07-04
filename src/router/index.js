@@ -3,9 +3,10 @@
  * - /login          公开路由
  * - /dashboard 等需要登录 → 使用 MainLayout 布局
  * - beforeEach 守卫：检查 Token 是否存在
+ * - 登录后从 /me 刷新 permissions 和 menus
  */
 import { createRouter, createWebHistory } from 'vue-router'
-import { getToken, clearAuth, saveAuth, fetchCurrentUser } from '../api/auth.js'
+import { getToken, clearAuth, saveAuth, savePermissions, saveMenus, fetchCurrentUser } from '../api/auth.js'
 
 const routes = [
   {
@@ -90,6 +91,19 @@ const routes = [
         component: () => import('../views/UserManagement.vue'),
         meta: { title: '用户管理' },
       },
+      // ── 系统管理子页面 ────────────────────────────────────────────────────
+      {
+        path: 'system/permission',
+        name: 'PermissionManagement',
+        component: () => import('../views/PermissionManagement.vue'),
+        meta: { title: '权限管理' },
+      },
+      {
+        path: 'system/menu',
+        name: 'MenuManagement',
+        component: () => import('../views/MenuManagement.vue'),
+        meta: { title: '菜单管理' },
+      },
       // ── 队友新增页面路由 ────────────────────────────────────────────────────
       {
         path: 'device/list',
@@ -116,7 +130,7 @@ const routes = [
         meta: { title: '告警详情' },
       },
       {
-        path: 'energy-trend',
+        path: 'energy',
         name: 'EnergyTrend',
         component: () => import('../views/EnergyTrend.vue'),
         meta: { title: '能耗走势' },
@@ -147,14 +161,16 @@ router.beforeEach(async (to, from) => {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
 
-  const isMock = token.startsWith('mock-token-dev-')
-  if (!isMock && from.path === '/login') {
+  // 从登录页进入时，刷新 permissions 和 menus
+  if (from.path === '/login') {
     try {
       const res = await fetchCurrentUser()
       if (res?.data) {
-        const fresh = { username: res.data.username, roleCode: res.data.roleCode }
+        const { username, roleCode, permissions, menus } = res.data
         const inLocal = !!localStorage.getItem('smart_light_token')
-        saveAuth(token, fresh, inLocal)
+        saveAuth(token, { username, roleCode }, inLocal)
+        savePermissions(permissions || [], inLocal)
+        saveMenus(menus || [], inLocal)
       }
     } catch {
       clearAuth()

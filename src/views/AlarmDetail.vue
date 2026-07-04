@@ -27,6 +27,9 @@ import {
   Document
 } from '@element-plus/icons-vue';
 import { fetchAlarmDetail, updateAlarmStatus, getAlarmStatuses } from '../api/alarm';
+import { useUserInfo } from '../composables/useUserInfo.js';
+
+const { hasPerm } = useUserInfo();
 
 const route = useRoute();
 const router = useRouter();
@@ -284,7 +287,7 @@ onMounted(() => {
           />
           <div class="action-buttons">
             <ElButton
-              v-if="alarmDetail.status !== 'processing'"
+              v-if="hasPerm('alarm:handle') && alarmDetail.status !== 'processing'"
               type="warning"
               @click="handleStatusChange('processing')"
               :icon="Loading"
@@ -292,7 +295,7 @@ onMounted(() => {
               开始处理
             </ElButton>
             <ElButton
-              v-if="alarmDetail.status !== 'handled'"
+              v-if="hasPerm('alarm:handle') && alarmDetail.status !== 'handled'"
               type="success"
               @click="handleStatusChange('handled')"
               :icon="CircleCheck"
