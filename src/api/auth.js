@@ -7,8 +7,10 @@
  */
 import request from './request.js'
 
-const TOKEN_KEY = 'smart_light_token'
-const USER_KEY  = 'smart_light_user'
+const TOKEN_KEY       = 'smart_light_token'
+const USER_KEY        = 'smart_light_user'
+const PERMISSIONS_KEY = 'smart_light_permissions'
+const MENUS_KEY       = 'smart_light_menus'
 
 // ────────────────────────── 登录 / 登出 ──────────────────────────────────
 
@@ -45,6 +47,44 @@ export function saveAuth(token, userInfo, remember = false) {
 }
 
 /**
+ * 保存权限列表
+ * @param {string[]} permissions 权限编码数组
+ * @param {boolean} persist 是否持久化（与 token 保持一致）
+ */
+export function savePermissions(permissions, persist = false) {
+  const storage = persist ? localStorage : sessionStorage
+  storage.setItem(PERMISSIONS_KEY, JSON.stringify(permissions || []))
+}
+
+/**
+ * 获取本地缓存的权限列表
+ * @returns {string[]}
+ */
+export function getPermissions() {
+  const raw = sessionStorage.getItem(PERMISSIONS_KEY) || localStorage.getItem(PERMISSIONS_KEY)
+  try { return raw ? JSON.parse(raw) : [] } catch { return [] }
+}
+
+/**
+ * 保存菜单树
+ * @param {object[]} menus 菜单树形数据
+ * @param {boolean} persist 是否持久化
+ */
+export function saveMenus(menus, persist = false) {
+  const storage = persist ? localStorage : sessionStorage
+  storage.setItem(MENUS_KEY, JSON.stringify(menus || []))
+}
+
+/**
+ * 获取本地缓存的菜单树
+ * @returns {object[]}
+ */
+export function getMenus() {
+  const raw = sessionStorage.getItem(MENUS_KEY) || localStorage.getItem(MENUS_KEY)
+  try { return raw ? JSON.parse(raw) : [] } catch { return [] }
+}
+
+/**
  * 获取 Token（优先 sessionStorage，再 localStorage）
  */
 export function getToken() {
@@ -66,6 +106,8 @@ export function clearAuth() {
   ;[localStorage, sessionStorage].forEach(s => {
     s.removeItem(TOKEN_KEY)
     s.removeItem(USER_KEY)
+    s.removeItem(PERMISSIONS_KEY)
+    s.removeItem(MENUS_KEY)
   })
 }
 
@@ -88,4 +130,32 @@ export const ROLE_LABELS = {
 
 export function getRoleLabel(roleCode) {
   return ROLE_LABELS[roleCode] || roleCode || '未知角色'
+}
+
+/**
+ * 检查当前用户是否拥有指定权限
+ * @param {string} permissionCode 权限编码，如 "device:create"
+ * @returns {boolean}
+ */
+export function hasPermission(permissionCode) {
+  return getPermissions().includes(permissionCode)
+}
+
+/**
+ * 从 /me 接口刷新 permissions 和 menus
+ */
+export async function refreshPermissionsAndMenus() {
+  try {
+    const res = await fetchCurrentUser()
+    if (res?.data) {
+      const { permissions, menus } = res.data
+      const inLocal = !!localStorage.getItem('smart_light_token')
+      savePermissions(permissions || [], inLocal)
+      saveMenus(menus || [], inLocal)
+      return { permissions: permissions || [], menus: menus || [] }
+    }
+  } catch {
+    // 静默失败，使用本地缓存
+  }
+  return { permissions: getPermissions(), menus: getMenus() }
 }

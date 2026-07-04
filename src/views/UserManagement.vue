@@ -5,6 +5,9 @@ import {
 } from 'element-plus'
 import { Search, Plus, Edit, Delete } from '@element-plus/icons-vue'
 import { fetchUserList, fetchAllRoles, createUser, updateUser, deleteUser } from '../api/user'
+import { useUserInfo } from '../composables/useUserInfo.js'
+
+const { hasPerm } = useUserInfo()
 
 const searchForm = ref({
   username: '',
@@ -36,6 +39,41 @@ const formData = ref({
   roleId: null,
   enabled: true
 })
+
+const createFormData = (user = {}) => ({
+  id: user.id ?? null,
+  username: user.username ?? '',
+  password: '',
+  realName: user.realName ?? '',
+  phone: user.phone ?? '',
+  email: user.email ?? '',
+  department: user.department ?? '',
+  areaCode: user.areaCode ?? '',
+  roleId: user.roleId ?? null,
+  enabled: user.enabled ?? true
+})
+
+const buildSubmitPayload = () => {
+  const {
+    id,
+    username,
+    password,
+    realName,
+    phone,
+    email,
+    department,
+    areaCode,
+    roleId,
+    enabled
+  } = formData.value
+  const payload = { id, username, password, realName, phone, email, department, areaCode, roleId, enabled }
+
+  if (dialogType.value === 'edit' && !payload.password) {
+    delete payload.password
+  }
+
+  return payload
+}
 
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
@@ -106,15 +144,13 @@ const handleReset = () => {
 
 const handleAdd = () => {
   dialogType.value = 'add'
-  formData.value = {
-    id: null, username: '', password: '', realName: '', phone: '', email: '', department: '', areaCode: '', roleId: null, enabled: true
-  }
+  formData.value = createFormData()
   dialogVisible.value = true
 }
 
 const handleEdit = (row) => {
   dialogType.value = 'edit'
-  formData.value = { ...row, password: '' }
+  formData.value = createFormData(row)
   dialogVisible.value = true
 }
 
@@ -122,11 +158,7 @@ const handleSubmit = async () => {
   if (!formRef.value) return
   await formRef.value.validate(async (valid) => {
     if (valid) {
-      // Edit form drops password if empty
-      const payload = { ...formData.value }
-      if (dialogType.value === 'edit' && !payload.password) {
-        delete payload.password
-      }
+      const payload = buildSubmitPayload()
       
       try {
         if (dialogType.value === 'add') {
@@ -205,7 +237,7 @@ onMounted(() => {
         <ElFormItem>
           <ElButton type="primary" @click="handleSearch"><Search /> 查询</ElButton>
           <ElButton @click="handleReset">重置</ElButton>
-          <ElButton type="success" @click="handleAdd"><Plus /> 新增用户</ElButton>
+          <ElButton v-if="hasPerm('user:create')" type="success" @click="handleAdd"><Plus /> 新增用户</ElButton>
         </ElFormItem>
       </ElForm>
     </div>
@@ -240,8 +272,8 @@ onMounted(() => {
         </ElTableColumn>
         <ElTableColumn label="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <ElButton type="primary" link @click="handleEdit(row)"><Edit /> 编辑</ElButton>
-            <ElButton type="danger" link @click="handleDelete(row)"><Delete /> 删除</ElButton>
+            <ElButton v-if="hasPerm('user:update')" type="primary" link @click="handleEdit(row)"><Edit /> 编辑</ElButton>
+            <ElButton v-if="hasPerm('user:delete')" type="danger" link @click="handleDelete(row)"><Delete /> 删除</ElButton>
           </template>
         </ElTableColumn>
       </ElTable>

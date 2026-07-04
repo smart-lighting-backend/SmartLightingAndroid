@@ -4,6 +4,9 @@ import { useRouter } from 'vue-router'
 import { fetchStrategyList, toggleStrategy, deleteStrategy } from '../api/strategy.js'
 import { ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElInputNumber, ElButton, ElPagination, ElIcon, ElMessage } from 'element-plus'
 import { Search, Refresh } from '@element-plus/icons-vue'
+import { useUserInfo } from '../composables/useUserInfo.js'
+
+const { hasPerm } = useUserInfo()
 
 const router = useRouter()
 const strategies = ref([])
@@ -105,7 +108,7 @@ async function remove(s) {
         <h1 class="page-title">策略配置</h1>
         <p class="page-sub">管理路灯自动调节规则，基于环境感知与时间调度</p>
       </div>
-      <button class="create-btn" @click="router.push('/strategy/create')">
+      <button v-if="hasPerm('policy:create')" class="create-btn" @click="router.push('/strategy/create')">
         <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         新建策略
       </button>
@@ -166,8 +169,8 @@ async function remove(s) {
               <div class="toggle-thumb"></div>
             </div>
           </div>
-          <button class="sc-btn edit" @click="router.push('/strategy/edit/' + s.id)">编辑</button>
-          <button class="sc-btn del" @click="remove(s)">删除</button>
+          <button v-if="hasPerm('policy:update')" class="sc-btn edit" @click="router.push('/strategy/edit/' + s.id)">编辑</button>
+          <button v-if="hasPerm('policy:delete')" class="sc-btn del" @click="remove(s)">删除</button>
         </div>
       </div>
     </div>

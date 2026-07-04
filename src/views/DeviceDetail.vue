@@ -6,6 +6,8 @@ import * as echarts from 'echarts';
 import { fetchDeviceDetail } from '../api/devices.js';
 import { fetchLatestTelemetry, fetchTelemetryHistory } from '../api/telemetry.js';
 import { sendControlCommand, getControlHistory } from '../api/control.js';
+import { useUserInfo } from '../composables/useUserInfo.js';
+const { hasPerm } = useUserInfo();
 const route = useRoute();
 const router = useRouter();
 const deviceId = ref('');
@@ -810,11 +812,12 @@ onBeforeUnmount(() => {
       </ElRow>
 
       <!-- ========== 远程控制面板 ========== -->
-      <div class="section-title">
-        <h3>远程控制</h3>
-      </div>
+      <template v-if="hasPerm('device:control')">
+        <div class="section-title">
+          <h3>远程控制</h3>
+        </div>
 
-      <div class="control-panel">
+        <div class="control-panel">
         <!-- 设备状态栏 -->
         <div class="ctrl-status-bar">
           <div class="ctrl-status-left">
@@ -921,6 +924,7 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </div>
+      </template>
 
       <ElCard class="control-history-card">
         <template #header>

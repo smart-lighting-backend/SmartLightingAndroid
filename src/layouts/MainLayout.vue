@@ -1,47 +1,150 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserInfo } from '../composables/useUserInfo.js'
-import { clearAuth } from '../api/auth.js'
+import { clearAuth, getMenus, saveMenus, refreshPermissionsAndMenus } from '../api/auth.js'
+import { fetchVisibleMenus } from '../api/menu.js'
 import ManualControlModal from '../components/ManualControlModal.vue'
 
 const route  = useRoute()
 const router = useRouter()
-const { username } = useUserInfo()
+const { username, roleName, permissions } = useUserInfo()
 
 const showManual = ref(false)
 const showUserMenu = ref(false)
 
+// ═══ 动态导航菜单（遵循文档：登录后使用API返回的menus，刷新时请求/me）═══════════════════════════
+const menus = ref([])
+const loadingMenus = ref(true)
 
-const navItems = [
-  { name: 'dashboard',       label: '数字孪生',  icon: 'grid',     path: '/dashboard' },
-  { name: 'devices',         label: '设备管理',  icon: 'bulb',     path: '/devices' },
-  { name: 'analytics',       label: '数据报表',  icon: 'chart',    path: '/analytics' },
-  { name: 'energy-trend',   label: '能耗走势',  icon: 'energy',   path: '/energy-trend' },
-  { name: 'warning',         label: '告警中心',  icon: 'warning',  path: '/warning' },
-  { name: 'strategy',        label: '策略配置',  icon: 'strategy', path: '/strategy' },
-  { name: 'assistant',       label: '智能助手',  icon: 'robot',    path: '/assistant' },
-  { name: 'logs',            label: '系统日志',  icon: 'history',  path: '/logs' },
-  { name: 'users',           label: '用户管理',  icon: 'user',     path: '/users' },
+// 兜底菜单数据（文档定义的完整菜单树）
+const FALLBACK_MENUS = [
+  { id: 1, name: '数字孪生', path: '/dashboard', icon: 'grid', sort: 1, children: [] },
+  { id: 2, name: '设备管理', path: '/devices', icon: 'bulb', sort: 2, children: [] },
+  { id: 3, name: '数据报表', path: '/analytics', icon: 'chart', sort: 3, children: [] },
+  { id: 4, name: '能耗走势', path: '/energy', icon: 'energy', sort: 4, children: [] },
+  { id: 5, name: '告警中心', path: '/warning', icon: 'warning', sort: 5, children: [] },
+  { id: 6, name: '策略配置', path: '/strategy', icon: 'strategy', sort: 6, children: [] },
+  { id: 7, name: '智能助手', path: '/assistant', icon: 'robot', sort: 7, children: [] },
+  { id: 8, name: '系统日志', path: '/logs', icon: 'history', sort: 8, children: [] },
+  { id: 9, name: '用户管理', path: '/users', icon: 'user', sort: 9, children: [] },
+  {
+    id: 10, name: '系统管理', path: '/system', icon: 'setting', sort: 10, children: [
+      { id: 11, name: '权限管理', path: '/system/permission', icon: '', sort: 1, children: [] },
+      { id: 12, name: '菜单管理', path: '/system/menu', icon: '', sort: 2, children: [] }
+    ]
+  }
 ]
+
+async function loadMenus() {
+  loadingMenus.value = true
+  try {
+    const res = await fetchVisibleMenus()
+    const data = res?.data || res
+    if (data && Array.isArray(data) && data.length > 0) {
+      menus.value = data.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+      const inLocal = !!localStorage.getItem('smart_light_token')
+      saveMenus(menus.value, inLocal)
+    } else {
+      const cached = getMenus()
+      if (cached && cached.length > 0) {
+        menus.value = cached.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+      } else {
+        menus.value = FALLBACK_MENUS
+      }
+    }
+  } catch (error) {
+    console.warn('[Menu] Failed to fetch menus from API, using cache or fallback', error)
+    const cached = getMenus()
+    if (cached && cached.length > 0) {
+      menus.value = cached.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+    } else {
+      menus.value = FALLBACK_MENUS
+    }
+  } finally {
+    loadingMenus.value = false
+  }
+}
+
+const navItems = computed(() => {
+  return menus.value
+})
 
 const activeNav = computed(() => {
   const p = route.path
-  if (p.startsWith('/devices')) return 'devices'
-  if (p.startsWith('/strategy')) return 'strategy'
-  const match = navItems.find(n => p === n.path)
-  return match?.name || 'dashboard'
+  for (const item of flattenMenu(navItems.value)) {
+    if (p === item.path) return item.id
+    if (item.path && p.startsWith(item.path + '/')) return item.id
+    if (item.path && item.path !== '/' && p.startsWith(item.path) && item.children?.length === 0) return item.id
+  }
+  for (const item of flattenMenu(navItems.value)) {
+    if (item.path && item.path !== '/' && p.startsWith(item.path)) return item.id
+  }
+  return null
 })
+
+function flattenMenu(items) {
+  const result = []
+  function walk(list) {
+    for (const item of list) {
+      result.push(item)
+      if (item.children && item.children.length > 0) walk(item.children)
+    }
+  }
+  walk(items)
+  return result
+}
+
+function isExpanded(item) {
+  if (activeNav.value === item.id) return true
+  if (item.children && item.children.length > 0) {
+    return item.children.some(c => activeNav.value === c.id)
+  }
+  return false
+}
+
+function renderIcon(iconName) {
+  if (!iconName) return null
+  const icons = {
+    grid:        '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" fill="currentColor" opacity="0.85"/><rect x="14" y="3" width="7" height="7" rx="1" fill="currentColor" opacity="0.85"/><rect x="3" y="14" width="7" height="7" rx="1" fill="currentColor" opacity="0.85"/><rect x="14" y="14" width="7" height="7" rx="1" fill="currentColor" opacity="0.85"/></svg>',
+    bulb:        '<svg viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7z" fill="currentColor" opacity="0.85"/><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1z" fill="currentColor" opacity="0.6"/></svg>',
+    chart:       '<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="12" width="4" height="9" rx="1" fill="currentColor" opacity="0.6"/><rect x="10" y="7" width="4" height="14" rx="1" fill="currentColor" opacity="0.8"/><rect x="17" y="3" width="4" height="18" rx="1" fill="currentColor"/></svg>',
+    energy:      '<svg viewBox="0 0 24 24" fill="none"><path d="M3 20l3-6h3L6 4h2l6 10h-3l2 6H7l-4-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="18" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M20 7v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    warning:     '<svg viewBox="0 0 24 24" fill="none"><path d="M12 2L2 20h20L12 2z" fill="currentColor" opacity="0.2" stroke="currentColor" stroke-width="1.5"/><path d="M12 9v5M12 16.5v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    strategy:    '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5.64 5.64l2.12 2.12M16.24 16.24l2.12 2.12M5.64 18.36l2.12-2.12M16.24 7.76l2.12-2.12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    robot:       '<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="8" width="16" height="12" rx="2" fill="currentColor" opacity="0.2" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="13" r="1.5" fill="currentColor"/><circle cx="15" cy="13" r="1.5" fill="currentColor"/><path d="M9 17h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M12 8V5M10 5h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    history:     '<svg viewBox="0 0 24 24" fill="none"><path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0A9 9 0 0 0 3 12z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    user:        '<svg viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    setting:     '<svg viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" fill="currentColor" opacity="0.4"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 008.9 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 8.9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 008.9 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 8.9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.5"/></svg>',
+  }
+  return icons[iconName] || null
+}
 
 function logout() {
   clearAuth()
   router.push('/login')
 }
+
+function navigateTo(item) {
+  if (!item.children || item.children.length === 0) {
+    router.push(item.path)
+  }
+}
+
+onMounted(async () => {
+  await refreshPermissionsAndMenus()
+  await loadMenus()
+})
+
+watch(() => route.path, () => {
+  if (route.path !== '/login') {
+    loadMenus()
+  }
+})
 </script>
 
 <template>
   <div class="main-layout">
-    <!-- ═══ 左侧导航栏 ═══════════════════════════════════════════ -->
     <aside class="sidebar">
       <div class="sidebar-brand">
         <div class="brand-logo">
@@ -54,78 +157,59 @@ function logout() {
       </div>
 
       <nav class="sidebar-nav">
-        <router-link
-          v-for="item in navItems"
-          :key="item.name"
-          :to="item.path"
-          class="nav-item"
-          :class="{ active: activeNav === item.name }"
-        >
-          <!-- Grid icon -->
-          <svg v-if="item.icon === 'grid'" class="nav-icon" viewBox="0 0 24 24" fill="none">
-            <rect x="3" y="3" width="7" height="7" rx="1" fill="currentColor" opacity="0.85"/>
-            <rect x="14" y="3" width="7" height="7" rx="1" fill="currentColor" opacity="0.85"/>
-            <rect x="3" y="14" width="7" height="7" rx="1" fill="currentColor" opacity="0.85"/>
-            <rect x="14" y="14" width="7" height="7" rx="1" fill="currentColor" opacity="0.85"/>
-          </svg>
-          <!-- Bulb icon -->
-          <svg v-else-if="item.icon === 'bulb'" class="nav-icon" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2C8.13 2 5 5.13 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7z" fill="currentColor" opacity="0.85"/>
-            <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1z" fill="currentColor" opacity="0.6"/>
-          </svg>
-          <!-- Chart icon -->
-          <svg v-else-if="item.icon === 'chart'" class="nav-icon" viewBox="0 0 24 24" fill="none">
-            <rect x="3" y="12" width="4" height="9" rx="1" fill="currentColor" opacity="0.6"/>
-            <rect x="10" y="7" width="4" height="14" rx="1" fill="currentColor" opacity="0.8"/>
-            <rect x="17" y="3" width="4" height="18" rx="1" fill="currentColor"/>
-          </svg>
-          <!-- Warning icon -->
-          <!-- Energy icon -->
-          <svg v-else-if="item.icon === 'energy'" class="nav-icon" viewBox="0 0 24 24" fill="none">
-            <path d="M3 20l3-6h3L6 4h2l6 10h-3l2 6H7l-4-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="20" cy="18" r="2" stroke="currentColor" stroke-width="1.2"/>
-            <path d="M20 7v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-          <!-- Warning icon -->
-          <svg v-else-if="item.icon === 'warning'" class="nav-icon" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2L2 20h20L12 2z" fill="currentColor" opacity="0.2" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M12 9v5M12 16.5v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          <!-- Strategy icon -->
-          <svg v-else-if="item.icon === 'strategy'" class="nav-icon" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="3" fill="currentColor"/>
-            <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5.64 5.64l2.12 2.12M16.24 16.24l2.12 2.12M5.64 18.36l2.12-2.12M16.24 7.76l2.12-2.12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-          <!-- Robot icon -->
-          <svg v-else-if="item.icon === 'robot'" class="nav-icon" viewBox="0 0 24 24" fill="none">
-            <rect x="4" y="8" width="16" height="12" rx="2" fill="currentColor" opacity="0.2" stroke="currentColor" stroke-width="1.5"/>
-            <circle cx="9" cy="13" r="1.5" fill="currentColor"/>
-            <circle cx="15" cy="13" r="1.5" fill="currentColor"/>
-            <path d="M9 17h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M12 8V5M10 5h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-          <!-- History icon -->
-          <svg v-else-if="item.icon === 'history'" class="nav-icon" viewBox="0 0 24 24" fill="none">
-            <path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0A9 9 0 0 0 3 12z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <!-- User icon -->
-          <svg v-else-if="item.icon === 'user'" class="nav-icon" viewBox="0 0 24 24" fill="none">
-            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-
-          <span class="nav-label">{{ item.label }}</span>
-          <span v-if="item.name === 'warning'" class="nav-badge">3</span>
-        </router-link>
+        <template v-if="loadingMenus">
+          <div class="nav-loading">加载菜单中...</div>
+        </template>
+        <template v-else>
+          <template v-for="item in navItems" :key="item.id">
+            <div v-if="item.children && item.children.length > 0" class="nav-group">
+              <div
+                class="nav-item nav-parent"
+                :class="{ active: isExpanded(item) }"
+                @click="navigateTo(item)"
+              >
+                <span v-if="renderIcon(item.icon)" class="nav-icon" v-html="renderIcon(item.icon)"></span>
+                <span class="nav-label">{{ item.name }}</span>
+                <svg class="nav-arrow" :class="{ rotated: isExpanded(item) }" viewBox="0 0 24 24" fill="none" width="14" height="14">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div v-if="isExpanded(item)" class="nav-sub">
+                <router-link
+                  v-for="child in item.children"
+                  :key="child.id"
+                  :to="child.path"
+                  class="nav-item nav-child"
+                  :class="{ active: activeNav === child.id }"
+                >
+                  <span class="nav-dot"></span>
+                  <span class="nav-label">{{ child.name }}</span>
+                </router-link>
+              </div>
+            </div>
+            <router-link
+              v-else
+              :to="item.path"
+              class="nav-item"
+              :class="{ active: activeNav === item.id }"
+            >
+              <span v-if="renderIcon(item.icon)" class="nav-icon" v-html="renderIcon(item.icon)"></span>
+              <span class="nav-label">{{ item.name }}</span>
+            </router-link>
+          </template>
+          <div v-if="navItems.length === 0" class="nav-empty">
+            暂无可用菜单
+          </div>
+        </template>
       </nav>
 
-      <!-- 底部用户信息 -->
       <div class="sidebar-user" @click="showUserMenu = !showUserMenu">
         <div class="user-avatar">
           <svg viewBox="0 0 24 24" fill="none"><path d="M12 12c2.7 0 4-1.8 4-4s-1.3-4-4-4-4 1.8-4 4 1.3 4 4 4zm0 2c-2.67 0-8 1.34-8 4v1a1 1 0 001 1h14a1 1 0 001-1v-1c0-2.66-5.33-4-8-4z" fill="currentColor"/></svg>
         </div>
         <div class="user-info">
           <span class="user-name">{{ username }}</span>
-          <span class="user-role">系统管理员</span>
+          <span class="user-role">{{ roleName }}</span>
         </div>
         <transition name="fade-up">
           <div v-if="showUserMenu" class="user-menu">
@@ -138,15 +222,13 @@ function logout() {
       </div>
     </aside>
 
-    <!-- ═══ 右侧主体 ════════════════════════════════════════════ -->
     <div class="main-body">
-      <!-- 顶部导航栏 -->
       <header class="top-bar">
         <div class="top-bar-left">
           <span class="top-brand">智慧路灯节能系统</span>
           <nav class="top-nav">
-            <router-link to="/dashboard" class="top-nav-link" :class="{ active: activeNav === 'dashboard' || activeNav === 'analytics' }">实时监控</router-link>
-            <router-link to="/analytics" class="top-nav-link" :class="{ active: activeNav === 'analytics' }">能耗看板</router-link>
+            <router-link to="/dashboard" class="top-nav-link" :class="{ active: activeNav === 1 || activeNav === 3 }">实时监控</router-link>
+            <router-link to="/analytics" class="top-nav-link" :class="{ active: activeNav === 3 }">能耗看板</router-link>
           </nav>
         </div>
         <div class="top-bar-right">
@@ -165,19 +247,16 @@ function logout() {
         </div>
       </header>
 
-      <!-- 页面内容 -->
       <main class="page-content">
         <RouterView />
       </main>
     </div>
 
-    <!-- 手动控制弹窗 -->
     <ManualControlModal v-if="showManual" @close="showManual = false" />
   </div>
 </template>
 
 <style scoped>
-/* ─── 整体布局 ─────────────────────────────────────────────────────────── */
 .main-layout {
   display: flex;
   width: 100%;
@@ -186,7 +265,6 @@ function logout() {
   overflow: hidden;
 }
 
-/* ─── 侧边栏 ───────────────────────────────────────────────────────────── */
 .sidebar {
   width: clamp(200px, calc(200px * var(--scale-ratio, 1)), 260px);
   min-width: clamp(200px, calc(200px * var(--scale-ratio, 1)), 260px);
@@ -200,7 +278,6 @@ function logout() {
   z-index: 10;
 }
 
-/* 品牌区 */
 .sidebar-brand {
   display: flex;
   align-items: center;
@@ -223,7 +300,6 @@ function logout() {
 .brand-title { font-size: clamp(13px, calc(13px * var(--scale-ratio, 1)), 16px); font-weight: 700; color: #e0f4ff; line-height: 1.3; }
 .brand-sub { font-size: 10px; color: rgba(120, 180, 220, 0.6); margin-top: 1px; }
 
-/* 导航 */
 .sidebar-nav {
   flex: 1;
   padding: 12px 10px;
@@ -231,6 +307,12 @@ function logout() {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+.nav-loading {
+  text-align: center;
+  padding: 20px;
+  color: rgba(140, 190, 220, 0.4);
+  font-size: 12px;
 }
 .nav-item {
   display: flex;
@@ -244,6 +326,7 @@ function logout() {
   font-size: clamp(13px, calc(13px * var(--scale-ratio, 1)), 15px);
   transition: all 0.2s ease;
   position: relative;
+  user-select: none;
 }
 .nav-item:hover {
   background: rgba(0, 120, 200, 0.12);
@@ -264,23 +347,58 @@ function logout() {
   background: #4dd0e1;
   border-radius: 0 2px 2px 0;
 }
-.nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
-.nav-label { flex: 1; }
-.nav-badge {
-  background: #e53935;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 600;
-  min-width: 18px;
-  height: 18px;
-  border-radius: 9px;
+.nav-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 4px;
+}
+.nav-icon :deep(svg) { width: 16px; height: 16px; }
+.nav-label { flex: 1; min-width: 0; }
+
+.nav-parent .nav-arrow {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  transition: transform 0.25s ease;
+  opacity: 0.5;
+}
+.nav-parent .nav-arrow.rotated {
+  transform: rotate(180deg);
 }
 
-/* 底部用户 */
+.nav-sub {
+  padding-left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.nav-child {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.nav-child .nav-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+.nav-child.active .nav-dot {
+  opacity: 1;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.nav-empty {
+  text-align: center;
+  padding: 40px 12px;
+  color: rgba(140, 190, 220, 0.3);
+  font-size: 12px;
+}
+
 .sidebar-user {
   padding: 12px 16px;
   border-top: 1px solid rgba(0, 120, 200, 0.1);
@@ -329,11 +447,9 @@ function logout() {
 .user-menu-item svg { width: 16px; height: 16px; }
 .user-menu-item:hover { background: rgba(0,150,220,0.15); color: #4dd0e1; }
 
-
 .fade-up-enter-active, .fade-up-leave-active { transition: all 0.2s; }
 .fade-up-enter-from, .fade-up-leave-to { opacity: 0; transform: translateY(6px); }
 
-/* ─── 主体区域 ─────────────────────────────────────────────────────────── */
 .main-body {
   flex: 1;
   display: flex;
@@ -342,7 +458,6 @@ function logout() {
   min-width: 0;
 }
 
-/* ─── 顶部导航栏 ───────────────────────────────────────────────────────── */
 .top-bar {
   height: 56px;
   min-height: 56px;
@@ -427,7 +542,6 @@ function logout() {
   line-height: 1;
 }
 
-/* ─── 页面内容 ─────────────────────────────────────────────────────────── */
 .page-content {
   flex: 1;
   overflow-y: auto;
