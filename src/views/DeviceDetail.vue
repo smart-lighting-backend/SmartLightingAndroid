@@ -113,7 +113,28 @@ const mapDeviceInfo = (raw) => {
     firmwareVersion: raw.firmwareVersion || 'V2.1.0',
     ipAddress: raw.ipAddress || raw.ip || '192.168.1.' + raw.id,
     latitude: lat,
-    longitude: lng
+    longitude: lng,
+    latestData: raw.latestData,
+  }
+}
+
+function parseLatestData(raw) {
+  if (!raw) return null
+  try { return typeof raw === 'string' ? JSON.parse(raw) : raw } catch { return null }
+}
+
+function applyControlState(data) {
+  if (!data || !data.action) return
+  if (data.action === 'OFF') {
+    lightStatus.value = false
+    brightness.value = data.brightness || 0
+  } else if (data.action === 'ON') {
+    lightStatus.value = true
+    brightness.value = data.brightness || 100
+  } else if (data.action.startsWith && data.action.startsWith('DIMMING')) {
+    lightStatus.value = true
+    const m = data.action.match(/DIMMING\((\d+)\)/)
+    brightness.value = m ? parseInt(m[1]) : (data.brightness || 80)
   }
 }
 
@@ -121,7 +142,10 @@ const loadDeviceInfo = async () => {
  loading.value = true;
  const res = await fetchDeviceDetail(deviceId.value);
  if (res.code === 200) {
- deviceInfo.value = mapDeviceInfo(res.data);
+   deviceInfo.value = mapDeviceInfo(res.data);
+   // 从 latestData 恢复控制状态
+   const state = parseLatestData(res.data?.latestData);
+   applyControlState(state);
  }
  loading.value = false;
 };
@@ -540,9 +564,32 @@ const loadControlHistory = async () => {
  console.error('加载控制历史失败');
  }
 };
-onMounted(() => {
+async function initControlState() {
+  // 优先从 latestData 读取控制状态
+  const state = parseLatestData(deviceInfo.value?.latestData);
+  if (state && state.action) {
+    applyControlState(state);
+    return;
+  }
+  // 兜底：从控制历史最后一条指令推断
+  try {
+    const res = await getControlHistory(deviceId.value, 1, 1);
+    if (res.code === 200 && res.data.list.length > 0) {
+      const last = res.data.list[0];
+      if (last.command === 'turn_on') lightStatus.value = true;
+      else if (last.command === 'turn_off') lightStatus.value = false;
+      if (last.command === 'dim' && last.params?.brightness != null) {
+        lightStatus.value = true;
+        brightness.value = last.params.brightness;
+      }
+    }
+  } catch { /* ignore */ }
+}
+
+onMounted(async () => {
  deviceId.value = route.params.id;
- loadDeviceInfo();
+ await loadDeviceInfo();
+ await initControlState();
  loadLatestTelemetry();
  loadHistoryData();
  loadControlHistory();
