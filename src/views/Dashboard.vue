@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { fetchDashboardStats, fetchEnergyTrend, fetchDistrictData } from '../api/dashboard.js'
+import { fetchDashboardStats, fetchEnergyTrend, fetchDistrictData, triggerEnergyCalc, genTestData } from '../api/dashboard.js'
 import * as echarts from 'echarts'
 
 const router = useRouter()
@@ -9,6 +9,36 @@ const stats = ref({})
 const districts = ref([])
 const chartRef = ref(null)
 let chart = null
+const calcLoading = ref(false)
+const genLoading = ref(false)
+
+async function handleCalcEnergy() {
+  if (calcLoading.value) return
+  calcLoading.value = true
+  try {
+    await triggerEnergyCalc()
+    alert('当日能耗计算完成')
+    window.location.reload()
+  } catch (e) {
+    alert('计算失败: ' + (e.response?.data?.msg || e.message))
+  } finally {
+    calcLoading.value = false
+  }
+}
+
+async function handleGenData() {
+  if (genLoading.value) return
+  genLoading.value = true
+  try {
+    await genTestData(10)
+    alert('历史测试数据生成完成（过去10天）')
+    window.location.reload()
+  } catch (e) {
+    alert('生成失败: ' + (e.response?.data?.msg || e.message))
+  } finally {
+    genLoading.value = false
+  }
+}
 
 onMounted(async () => {
   try {
@@ -109,7 +139,15 @@ function initChart(data) {
       <div class="chart-card">
         <div class="card-header">
           <span class="card-title">能耗走势（今日 vs 上周同期）</span>
-          <span class="card-sub">单位: kWh</span>
+          <div class="card-header-right">
+            <button class="mini-btn" :disabled="calcLoading" @click="handleCalcEnergy">
+              {{ calcLoading ? '计算中...' : '手动计算' }}
+            </button>
+            <button class="mini-btn" :disabled="genLoading" @click="handleGenData">
+              {{ genLoading ? '生成中...' : '生成测试数据' }}
+            </button>
+            <span class="card-sub">单位: kWh</span>
+          </div>
         </div>
         <div ref="chartRef" class="chart-area"></div>
       </div>
@@ -194,7 +232,29 @@ function initChart(data) {
 }
 .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .card-title { font-size: 14px; font-weight: 600; color: #d0eaf8; }
+.card-header-right { display: flex; align-items: center; gap: 6px; }
 .card-sub { font-size: 12px; color: rgba(140,190,220,0.55); }
+.mini-btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  background: rgba(0,100,180,0.2);
+  border: 1px solid rgba(0,120,200,0.3);
+  border-radius: 4px;
+  color: rgba(140,200,230,0.7);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.mini-btn:hover:not(:disabled) {
+  background: rgba(0,120,200,0.35);
+  border-color: rgba(77,208,225,0.5);
+  color: #4dd0e1;
+}
+.mini-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .chart-area { height: 220px; }
 
 /* District */
