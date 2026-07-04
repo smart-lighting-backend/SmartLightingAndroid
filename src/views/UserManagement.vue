@@ -161,6 +161,26 @@ const handleDelete = (row) => {
   }).catch(() => {})
 }
 
+const formatDateTime = (dateRaw) => {
+  if (!dateRaw) return '--';
+  let dateArr = dateRaw;
+  if (typeof dateRaw === 'string' && dateRaw.includes(',')) {
+    dateArr = dateRaw.split(',').filter(x => x !== '').map(Number);
+  }
+  if (Array.isArray(dateArr) && dateArr.length >= 6) {
+    const [y, m, d, h, min, s] = dateArr;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')} ${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  try {
+    const d = new Date(dateRaw);
+    if (isNaN(d.getTime())) return String(dateRaw);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  } catch(e) {
+    return String(dateRaw);
+  }
+};
+
 onMounted(() => {
   loadRoles()
   loadUsers()
@@ -211,7 +231,13 @@ onMounted(() => {
             </ElTag>
           </template>
         </ElTableColumn>
-        <ElTableColumn prop="createTime" label="创建时间" min-width="160" />
+        <ElTableColumn label="创建时间" min-width="160">
+          <template #default="{ row }">
+            <span class="time-cell">
+              {{ formatDateTime(row.createTime) }}
+            </span>
+          </template>
+        </ElTableColumn>
         <ElTableColumn label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <ElButton type="primary" link @click="handleEdit(row)"><Edit /> 编辑</ElButton>
@@ -284,22 +310,27 @@ onMounted(() => {
 .user-list-container {
   padding: 24px;
   min-height: 100vh;
-  background-color: #1a1a2e;
+  background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 40%, #16213e 100%);
+  color: #e0e0e0;
 }
 
 .search-bar {
-  background-color: rgba(30, 30, 50, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: rgba(25, 25, 45, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .user-content {
-  background-color: rgba(30, 30, 50, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+  background-color: rgba(25, 25, 45, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
   padding: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .form-hint {
@@ -309,8 +340,56 @@ onMounted(() => {
 }
 
 .pagination-wrapper {
-  margin-top: 20px;
+  margin-top: 24px;
   display: flex;
   justify-content: flex-end;
+}
+
+.time-cell {
+  font-family: monospace;
+  color: #a0a5b0;
+  letter-spacing: 0.5px;
+}
+
+/* Deep styling for Element Plus to match dark theme */
+:deep(.el-form-item__label) {
+  color: #c0c4cc;
+}
+
+:deep(.el-input__wrapper), :deep(.el-select__wrapper) {
+  background-color: rgba(15, 15, 30, 0.6);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+:deep(.el-input__inner) {
+  color: #e0e0e0;
+}
+
+:deep(.el-table) {
+  background-color: transparent;
+  --el-table-border-color: rgba(255, 255, 255, 0.08);
+  --el-table-header-bg-color: rgba(30, 30, 50, 0.8);
+  --el-table-header-text-color: #e0e0e0;
+  --el-table-text-color: #c0c4cc;
+  --el-table-row-hover-bg-color: rgba(255, 255, 255, 0.05);
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+}
+
+:deep(.el-table th.el-table__cell) {
+  background-color: rgba(30, 30, 50, 0.8) !important;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+:deep(.el-table td.el-table__cell) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+:deep(.el-pagination) {
+  --el-pagination-bg-color: rgba(30, 30, 50, 0.6);
+  --el-pagination-text-color: #e0e0e0;
+  --el-pagination-button-color: #e0e0e0;
+  --el-pagination-button-disabled-bg-color: rgba(20, 20, 35, 0.6);
 }
 </style>
