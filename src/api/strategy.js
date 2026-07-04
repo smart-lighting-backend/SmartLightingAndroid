@@ -107,7 +107,7 @@ export function toggleStrategy(id, enabled) {
   )
 }
 
-// ── 策略组列表（仅 Mock，后端暂无此接口） ──────────────────────────────────
+// ── 策略组列表 GET /api/policies/groups ──────────────────────────────────
 export function fetchStrategyGroups() {
   return safeCall(
     () => request.get('/api/policies/groups'),
