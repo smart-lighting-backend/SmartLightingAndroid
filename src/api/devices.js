@@ -290,6 +290,11 @@ export function controlDevice(deviceId, payload) {
   )
 }
 
+// ── 解除手动锁定 DELETE /api/devices/{deviceId}/manual-lock ──────────────
+export function unlockDevice(deviceId) {
+  return request.delete(`/api/devices/${deviceId}/manual-lock`)
+}
+
 // ── 节点列表（手动控制弹窗用） ─────────────────────────────────────────────
 export async function fetchDeviceNodes() {
   const mockNodes = MOCK_DEVICES.map(d => ({
@@ -297,6 +302,9 @@ export async function fetchDeviceNodes() {
     name:     d.name,
     location: d.area + ' ' + d.location,
     status:   d.status,
+    latestData: d.latestData,
+    manualMode: d.manualMode || false,
+    manualExpireAt: d.manualExpireAt || null,
   }))
   const res = await safeCall(
     () => request.post('/api/devices/list', { pageNum: 1, pageSize: 100 }),

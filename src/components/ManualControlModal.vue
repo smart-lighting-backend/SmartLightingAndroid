@@ -1,6 +1,6 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { fetchDeviceNodes, controlDevice } from '../api/devices.js'
+import { ref, onMounted, watch, computed } from 'vue'
+import { fetchDeviceNodes, controlDevice, unlockDevice } from '../api/devices.js'
 
 const emit = defineEmits(['close'])
 
@@ -15,12 +15,44 @@ const logs = ref([
 const sending = ref(false)
 const logsContainer = ref(null)
 
+function parseLatestData(raw) {
+  if (!raw) return null
+  try {
+    return typeof raw === 'string' ? JSON.parse(raw) : raw
+  } catch {
+    return null
+  }
+}
+
+function applyDeviceState(node) {
+  const data = parseLatestData(node?.latestData)
+  if (data && data.action) {
+    if (data.action === 'OFF') {
+      power.value = false
+      brightness.value = data.brightness || 0
+    } else if (data.action === 'ON') {
+      power.value = true
+      brightness.value = data.brightness || 100
+    } else if (data.action && data.action.startsWith('DIMMING')) {
+      power.value = true
+      const match = data.action.match(/DIMMING\((\d+)\)/)
+      brightness.value = match ? parseInt(match[1]) : (data.brightness || 75)
+    }
+  }
+}
+
 onMounted(async () => {
   const res = await fetchDeviceNodes()
-  // 兼容直接返回数组或 data 字段
   const raw = Array.isArray(res) ? res : (res.data || [])
   nodes.value = raw
-  if (nodes.value.length) selectedNode.value = nodes.value[0]
+  if (nodes.value.length) {
+    selectedNode.value = nodes.value[0]
+    applyDeviceState(nodes.value[0])
+  }
+})
+
+watch(selectedNode, (node) => {
+  if (node) applyDeviceState(node)
 })
 
 const nodeDisplayName = computed(() => selectedNode.value
@@ -78,9 +110,49 @@ async function setBrightness() {
 
 async function syncStatus() {
   if (!selectedNode.value) return
-  addLog('🔄 正在强制同步状态 ...')
-  await new Promise(r => setTimeout(r, 800))
-  addLog(`✅ 同步完成：在线，亮度 ${brightness.value}%，电源 ${power.value ? 'ON' : 'OFF'}`)
+  addLog('🔄 正在重新读取设备状态 ...')
+  try {
+    const res = await fetchDeviceNodes()
+    const raw = Array.isArray(res) ? res : (res.data || [])
+    const updated = raw.find(n => (n.deviceId || n.id) === currentDeviceId())
+    if (updated) {
+      selectedNode.value = updated
+      applyDeviceState(updated)
+      addLog(`✅ 同步完成：电源 ${power.value ? 'ON' : 'OFF'}，亮度 ${brightness.value}%`)
+    } else {
+      addLog('⚠️ 未找到该设备的最新状态')
+    }
+  } catch (e) {
+    addLog(`❌ 同步失败：${e?.message || '请检查连接'}`, 'error')
+  }
+}
+
+const isManualMode = computed(() => {
+  if (!selectedNode.value?.manualMode) return false
+  if (!selectedNode.value?.manualExpireAt) return false
+  return new Date(selectedNode.value.manualExpireAt) > new Date()
+})
+
+const manualExpireText = computed(() => {
+  if (!selectedNode.value?.manualExpireAt) return ''
+  const d = new Date(selectedNode.value.manualExpireAt)
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+})
+
+async function releaseManualLock() {
+  if (!selectedNode.value) return
+  addLog('🔓 正在解除手动锁定 ...')
+  try {
+    await unlockDevice(currentDeviceId())
+    if (selectedNode.value) {
+      selectedNode.value.manualMode = false
+      selectedNode.value.manualExpireAt = null
+    }
+    addLog('✅ 手动锁定已解除，设备恢复自动控制')
+  } catch (e) {
+    addLog(`❌ 解除锁定失败：${e?.message || '请检查连接'}`, 'error')
+  }
 }
 </script>
 
@@ -122,8 +194,17 @@ async function syncStatus() {
 
       <!-- 在线状态标签 -->
       <div class="status-tag">
-        <span class="dot" :class="selectedNode?.status"></span>
+        <span class="dot" :class="selectedNode?.status === 1 ? 'online' : 'offline'"></span>
         {{ selectedNode?.status === 1 ? 'ONLINE' : 'OFFLINE' }}
+      </div>
+
+      <!-- 手动模式标识 -->
+      <div v-if="isManualMode" class="manual-mode-banner">
+        <div class="manual-mode-info">
+          <span class="manual-icon">🔒</span>
+          <span>手动控制模式 · {{ manualExpireText }} 恢复自动</span>
+        </div>
+        <button class="unlock-btn" @click="releaseManualLock">解除锁定</button>
       </div>
 
       <!-- 主路灯电源开关 -->
@@ -402,4 +483,35 @@ async function syncStatus() {
 .sync-btn svg { width: 15px; height: 15px; }
 .sync-btn:hover:not(:disabled) { background: rgba(0, 120, 200, 0.2); color: #4dd0e1; border-color: rgba(77,208,225,0.4); }
 .sync-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.manual-mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 160, 40, 0.1);
+  border: 1px solid rgba(255, 160, 40, 0.3);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+.manual-mode-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #ffa726;
+}
+.manual-icon { font-size: 14px; }
+.unlock-btn {
+  padding: 4px 12px;
+  background: rgba(255, 160, 40, 0.15);
+  border: 1px solid rgba(255, 160, 40, 0.4);
+  border-radius: 6px;
+  color: #ffa726;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.unlock-btn:hover { background: rgba(255, 160, 40, 0.3); color: #ffcc80; }
 </style>
