@@ -2,13 +2,17 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchDashboardStats, fetchEnergyTrend, fetchDistrictData, triggerEnergyCalc, genTestData } from '../api/dashboard.js'
+import { useChartScale } from '../composables/useChartScale.js'
 import * as echarts from 'echarts'
 
 const router = useRouter()
+const { scaleOption, onScaleChange } = useChartScale()
 const stats = ref({})
 const districts = ref([])
 const chartRef = ref(null)
 let chart = null
+let trendData = null
+let stopScaleWatch = null
 const calcLoading = ref(false)
 const genLoading = ref(false)
 
@@ -60,18 +64,25 @@ onMounted(async () => {
 
     await nextTick();
     initChart(trendData);
+    stopScaleWatch = onScaleChange(() => initChart(trendData));
+    window.addEventListener('resize', handleChartResize)
   } catch (e) {
     console.error('[Dashboard] onMounted ERROR:', e.message, e.stack);
   }
 })
 
-onUnmounted(() => { chart?.dispose() })
+onUnmounted(() => {
+  stopScaleWatch?.()
+  window.removeEventListener('resize', handleChartResize)
+  chart?.dispose()
+})
 
-function initChart(data) {
-  if (!chartRef.value) return;
-  if (chart) chart.dispose();
-  chart = echarts.init(chartRef.value, 'dark');
-  chart.setOption({
+function handleChartResize() {
+  chart?.resize()
+}
+
+function buildChartOption(data) {
+  return {
     backgroundColor: 'transparent',
     grid: { top: 30, bottom: 40, left: 50, right: 24 },
     tooltip: { trigger: 'axis', backgroundColor: 'rgba(4,20,50,0.9)', borderColor: 'rgba(0,150,220,0.3)', textStyle: { color: '#d0eaf8', fontSize: 12 } },
@@ -82,8 +93,15 @@ function initChart(data) {
       { name: '本日能耗', type: 'line', data: data.current, smooth: true, symbol: 'none', lineStyle: { color: '#4dd0e1', width: 2 }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(77,208,225,0.25)' }, { offset: 1, color: 'rgba(77,208,225,0.02)' }]) } },
       { name: '上周同期', type: 'line', data: data.lastWeek, smooth: true, symbol: 'none', lineStyle: { color: 'rgba(100,150,200,0.5)', width: 1.5, type: 'dashed' }, areaStyle: { color: 'transparent' } },
     ],
-  });
-  window.addEventListener('resize', () => chart?.resize())
+  }
+}
+
+function initChart(data) {
+  if (!chartRef.value) return;
+  trendData = data
+  if (!chart) chart = echarts.init(chartRef.value, 'dark');
+  chart.setOption(scaleOption(buildChartOption(data)), true);
+  handleChartResize()
 }
 </script>
 
@@ -208,7 +226,7 @@ function initChart(data) {
 .stat-icon.online-rate { background: rgba(76,175,80,0.12); color: #4caf50; }
 .stat-icon.energy      { background: rgba(255,167,38,0.12); color: #ffa726; }
 .stat-icon.alert       { background: rgba(239,83,80,0.12); color: #ef5350; }
-.stat-value { font-size: 26px; font-weight: 700; color: #e0f4ff; line-height: 1; margin-bottom: 3px; }
+.stat-value { font-size: calc(26px * var(--scale-ratio, 1)); font-weight: 700; color: #e0f4ff; line-height: 1; margin-bottom: 3px; }
 .stat-value.warn { color: #ef5350; }
 .stat-label { font-size: 12px; color: rgba(140,190,220,0.65); margin-bottom: 4px; }
 .stat-hint { font-size: 11px; }
@@ -217,7 +235,7 @@ function initChart(data) {
 .stat-hint.warn-hint { color: rgba(239,83,80,0.8); }
 
 /* Main grid */
-.main-grid { display: grid; grid-template-columns: 1fr 320px; gap: 14px; margin-bottom: 14px; }
+.main-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: calc(14px * var(--scale-ratio, 1)); margin-bottom: 14px; }
 .chart-card, .district-card {
   background: rgba(8,20,45,0.8);
   border: 1px solid rgba(0,120,200,0.15);
@@ -229,8 +247,8 @@ function initChart(data) {
 .card-header-right { display: flex; align-items: center; gap: 6px; }
 .card-sub { font-size: 12px; color: rgba(140,190,220,0.55); }
 .mini-btn {
-  padding: 2px 8px;
-  font-size: 11px;
+  padding: calc(2px * var(--scale-ratio, 1)) calc(8px * var(--scale-ratio, 1));
+  font-size: calc(11px * var(--scale-ratio, 1));
   line-height: 1.5;
   background: rgba(0,100,180,0.2);
   border: 1px solid rgba(0,120,200,0.3);
@@ -249,7 +267,7 @@ function initChart(data) {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.chart-area { height: 220px; }
+.chart-area { height: calc(220px * var(--scale-ratio, 1)); }
 
 /* District */
 .district-list { display: flex; flex-direction: column; gap: 12px; }

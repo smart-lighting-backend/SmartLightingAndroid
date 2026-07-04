@@ -35,6 +35,14 @@ export function createScene(container) {
     camera.aspect = w / h
     camera.updateProjectionMatrix()
     renderer.setSize(w, h)
+
+    const ratio = window.innerWidth / 1920
+    if (ratio > 1.1) {
+      camera.position.set(5 * ratio, 5, 10 * ratio)
+    } else {
+      camera.position.set(5, 5, 10)
+    }
+    camera.lookAt(0, 0, 0)
   }
   window.addEventListener('resize', onResize)
 

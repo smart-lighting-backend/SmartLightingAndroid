@@ -2,12 +2,42 @@
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { fetchEnergyTrend } from '../api/dashboard'
+import { useChartScale } from '../composables/useChartScale.js'
 
+const { scaleOption, onScaleChange } = useChartScale()
 const chartRef = ref(null)
 const loading = ref(true)
 const empty = ref(false)
 const error = ref('')
 let chart = null
+let chartData = null
+let stopScaleWatch = null
+
+function buildChartOption(data) {
+  return {
+    backgroundColor: 'transparent',
+    grid: { top: 30, bottom: 40, left: 50, right: 24 },
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(4,20,50,0.9)', borderColor: 'rgba(0,150,220,0.3)', textStyle: { color: '#d0eaf8', fontSize: 12 } },
+    legend: { top: 4, right: 0, textStyle: { color: 'rgba(140,190,220,0.7)', fontSize: 11 }, data: ['本日能耗', '上周同期'] },
+    xAxis: { type: 'category', data: data.labels, axisLine: { lineStyle: { color: 'rgba(0,120,200,0.2)' } }, axisLabel: { color: 'rgba(140,190,220,0.6)', fontSize: 10, interval: 3 }, splitLine: { show: false } },
+    yAxis: { type: 'value', name: 'kWh', nameTextStyle: { color: 'rgba(140,190,220,0.5)', fontSize: 10 }, axisLabel: { color: 'rgba(140,190,220,0.6)', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(0,80,140,0.15)' } } },
+    series: [
+      { name: '本日能耗', type: 'line', data: data.current, smooth: true, symbol: 'none', lineStyle: { color: '#4dd0e1', width: 2 }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(77,208,225,0.25)' }, { offset: 1, color: 'rgba(77,208,225,0.02)' }]) } },
+      { name: '上周同期', type: 'line', data: data.lastWeek, smooth: true, symbol: 'none', lineStyle: { color: 'rgba(100,150,200,0.5)', width: 1.5, type: 'dashed' }, areaStyle: { color: 'transparent' } },
+    ],
+  }
+}
+
+function renderChart(data) {
+  if (!chartRef.value) return
+  if (!chart) chart = echarts.init(chartRef.value, 'dark')
+  chart.setOption(scaleOption(buildChartOption(data)), true)
+  chart.resize()
+}
+
+function handleChartResize() {
+  chart?.resize()
+}
 
 const initChart = async () => {
   loading.value = true
@@ -23,22 +53,8 @@ const initChart = async () => {
     }
 
     await nextTick()
-    if (!chartRef.value) return
-
-    chart = echarts.init(chartRef.value, 'dark')
-    chart.setOption({
-      backgroundColor: 'transparent',
-      grid: { top: 30, bottom: 40, left: 50, right: 24 },
-      tooltip: { trigger: 'axis', backgroundColor: 'rgba(4,20,50,0.9)', borderColor: 'rgba(0,150,220,0.3)', textStyle: { color: '#d0eaf8', fontSize: 12 } },
-      legend: { top: 4, right: 0, textStyle: { color: 'rgba(140,190,220,0.7)', fontSize: 11 }, data: ['本日能耗', '上周同期'] },
-      xAxis: { type: 'category', data: data.labels, axisLine: { lineStyle: { color: 'rgba(0,120,200,0.2)' } }, axisLabel: { color: 'rgba(140,190,220,0.6)', fontSize: 10, interval: 3 }, splitLine: { show: false } },
-      yAxis: { type: 'value', name: 'kWh', nameTextStyle: { color: 'rgba(140,190,220,0.5)', fontSize: 10 }, axisLabel: { color: 'rgba(140,190,220,0.6)', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(0,80,140,0.15)' } } },
-      series: [
-        { name: '本日能耗', type: 'line', data: data.current, smooth: true, symbol: 'none', lineStyle: { color: '#4dd0e1', width: 2 }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(77,208,225,0.25)' }, { offset: 1, color: 'rgba(77,208,225,0.02)' }]) } },
-        { name: '上周同期', type: 'line', data: data.lastWeek, smooth: true, symbol: 'none', lineStyle: { color: 'rgba(100,150,200,0.5)', width: 1.5, type: 'dashed' }, areaStyle: { color: 'transparent' } },
-      ],
-    })
-    window.addEventListener('resize', () => chart?.resize())
+    chartData = data
+    renderChart(data)
   } catch (e) {
     error.value = '数据加载失败，请检查后端服务'
     console.error(e)
@@ -47,8 +63,18 @@ const initChart = async () => {
   }
 }
 
-onMounted(() => { initChart() })
-onBeforeUnmount(() => { chart?.dispose() })
+onMounted(() => {
+  initChart()
+  stopScaleWatch = onScaleChange(() => {
+    if (chartData) renderChart(chartData)
+  })
+  window.addEventListener('resize', handleChartResize)
+})
+onBeforeUnmount(() => {
+  stopScaleWatch?.()
+  window.removeEventListener('resize', handleChartResize)
+  chart?.dispose()
+})
 </script>
 
 <template>
@@ -72,7 +98,7 @@ onBeforeUnmount(() => { chart?.dispose() })
 .page-title { font-size: 22px; font-weight: 700; color: #e0f4ff; margin-bottom: 4px; }
 .page-sub { font-size: 13px; color: rgba(140,190,220,0.6); }
 .chart-card { background: rgba(8,20,45,0.8); border: 1px solid rgba(0,120,200,0.15); border-radius: 10px; padding: 16px 18px; }
-.chart-area { height: 360px; }
+.chart-area { height: calc(360px * var(--scale-ratio, 1)); }
 .loading-state, .error-state, .empty-state { display: flex; align-items: center; justify-content: center; height: 360px; color: rgba(140,190,220,0.5); font-size: 14px; }
 .error-state { color: rgba(255,100,100,0.7); }
 </style>

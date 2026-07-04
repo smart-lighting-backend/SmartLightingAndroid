@@ -2,8 +2,10 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { fetchYearlyStats, fetchMonthlyEnergy, fetchDistrictEnergy } from '../api/dashboard'
+import { useChartScale } from '../composables/useChartScale.js'
 
 const year = new Date().getFullYear()
+const { scaleOption, onScaleChange } = useChartScale()
 const loading = ref(true)
 const error = ref('')
 const yearlyStats = ref({})
@@ -13,6 +15,7 @@ const districtData = ref([])
 const energyRef = ref(null)
 const pieRef = ref(null)
 let chart1 = null, chart2 = null
+let stopScaleWatch = null
 
 const COLORS = ['#4dd0e1', '#42a5f5', '#66bb6a', '#ffa726', '#ab47bc', '#ef5350', '#26c6da', '#7e57c2']
 
@@ -38,10 +41,8 @@ const cards = computed(() => {
   ]
 })
 
-function initBarChart() {
-  if (!energyRef.value) return
-  chart1 = echarts.init(energyRef.value, 'dark')
-  chart1.setOption({
+function buildBarOption() {
+  return {
     backgroundColor: 'transparent',
     grid: { top: 30, bottom: 40, left: 55, right: 20 },
     tooltip: { trigger: 'axis', backgroundColor: 'rgba(4,20,50,0.9)', borderColor: 'rgba(0,150,220,0.3)', textStyle: { color: '#d0eaf8', fontSize: 12 } },
@@ -52,13 +53,11 @@ function initBarChart() {
       { name: '实际能耗(kWh)', type: 'bar', data: monthlyData.value.consumption, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(77,208,225,0.9)' }, { offset: 1, color: 'rgba(0,100,180,0.5)' }]), borderRadius: [3, 3, 0, 0] } },
       { name: '节省量(kWh)', type: 'bar', data: monthlyData.value.savings, itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(76,175,80,0.9)' }, { offset: 1, color: 'rgba(0,120,60,0.5)' }]), borderRadius: [3, 3, 0, 0] } },
     ],
-  })
+  }
 }
 
-function initPieChart() {
-  if (!pieRef.value) return
-  chart2 = echarts.init(pieRef.value, 'dark')
-  chart2.setOption({
+function buildPieOption() {
+  return {
     backgroundColor: 'transparent',
     tooltip: { trigger: 'item', backgroundColor: 'rgba(4,20,50,0.9)', borderColor: 'rgba(0,150,220,0.3)', textStyle: { color: '#d0eaf8' } },
     legend: { bottom: 0, textStyle: { color: 'rgba(140,190,220,0.7)', fontSize: 11 } },
@@ -67,7 +66,26 @@ function initPieChart() {
       label: { color: 'rgba(140,190,220,0.8)', fontSize: 11 },
       data: districtData.value.map((d, i) => ({ ...d, itemStyle: { color: COLORS[i % COLORS.length] } })),
     }],
-  })
+  }
+}
+
+function initBarChart() {
+  if (!energyRef.value) return
+  if (!chart1) chart1 = echarts.init(energyRef.value, 'dark')
+  chart1.setOption(scaleOption(buildBarOption()), true)
+  chart1.resize()
+}
+
+function initPieChart() {
+  if (!pieRef.value) return
+  if (!chart2) chart2 = echarts.init(pieRef.value, 'dark')
+  chart2.setOption(scaleOption(buildPieOption()), true)
+  chart2.resize()
+}
+
+function handleChartResize() {
+  chart1?.resize()
+  chart2?.resize()
 }
 
 onMounted(async () => {
@@ -89,10 +107,19 @@ onMounted(async () => {
     initBarChart()
     initPieChart()
   }
-  window.addEventListener('resize', () => { chart1?.resize(); chart2?.resize() })
+  stopScaleWatch = onScaleChange(() => {
+    initBarChart()
+    initPieChart()
+  })
+  window.addEventListener('resize', handleChartResize)
 })
 
-onUnmounted(() => { chart1?.dispose(); chart2?.dispose() })
+onUnmounted(() => {
+  stopScaleWatch?.()
+  window.removeEventListener('resize', handleChartResize)
+  chart1?.dispose()
+  chart2?.dispose()
+})
 </script>
 
 <template>
@@ -138,7 +165,7 @@ onUnmounted(() => { chart1?.dispose(); chart2?.dispose() })
 .page-header { margin-bottom: 20px; }
 .page-title { font-size: 22px; font-weight: 700; color: #e0f4ff; margin-bottom: 4px; }
 .page-sub { font-size: 13px; color: rgba(140,190,220,0.6); }
-.metrics-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 16px; }
+.metrics-row { display: grid; grid-template-columns: repeat(4,1fr); gap: calc(14px * var(--scale-ratio, 1)); margin-bottom: 16px; }
 .metric-card {
   background: rgba(8,20,45,0.8);
   border: 1px solid rgba(0,120,200,0.15);
@@ -151,7 +178,7 @@ onUnmounted(() => { chart1?.dispose(); chart2?.dispose() })
 .chart-card { background: rgba(8,20,45,0.8); border: 1px solid rgba(0,120,200,0.15); border-radius: 10px; padding: 16px 18px; }
 .card-header { margin-bottom: 12px; }
 .card-title { font-size: 14px; font-weight: 600; color: #d0eaf8; }
-.chart-area-lg { height: 260px; }
+.chart-area-lg { height: calc(260px * var(--scale-ratio, 1)); }
 .loading-state, .error-state, .empty-state { display: flex; align-items: center; justify-content: center; height: 260px; color: rgba(140,190,220,0.5); font-size: 14px; }
 .error-state { color: rgba(255,100,100,0.7); }
 </style>

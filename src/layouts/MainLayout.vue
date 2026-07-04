@@ -180,17 +180,17 @@ function logout() {
 /* ─── 整体布局 ─────────────────────────────────────────────────────────── */
 .main-layout {
   display: flex;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   background: #060e1f;
   overflow: hidden;
 }
 
 /* ─── 侧边栏 ───────────────────────────────────────────────────────────── */
 .sidebar {
-  width: 200px;
-  min-width: 200px;
-  height: 100vh;
+  width: clamp(200px, calc(200px * var(--scale-ratio, 1)), 260px);
+  min-width: clamp(200px, calc(200px * var(--scale-ratio, 1)), 260px);
+  height: 100%;
   background: linear-gradient(180deg, #081428 0%, #060e1f 100%);
   border-right: 1px solid rgba(0, 120, 200, 0.15);
   display: flex;
@@ -220,7 +220,7 @@ function logout() {
 }
 .brand-logo svg { width: 20px; height: 20px; color: #4dd0e1; }
 .brand-text { display: flex; flex-direction: column; }
-.brand-title { font-size: 13px; font-weight: 700; color: #e0f4ff; line-height: 1.3; }
+.brand-title { font-size: clamp(13px, calc(13px * var(--scale-ratio, 1)), 16px); font-weight: 700; color: #e0f4ff; line-height: 1.3; }
 .brand-sub { font-size: 10px; color: rgba(120, 180, 220, 0.6); margin-top: 1px; }
 
 /* 导航 */
@@ -241,7 +241,7 @@ function logout() {
   cursor: pointer;
   color: rgba(140, 190, 220, 0.7);
   text-decoration: none;
-  font-size: 13px;
+  font-size: clamp(13px, calc(13px * var(--scale-ratio, 1)), 15px);
   transition: all 0.2s ease;
   position: relative;
 }
