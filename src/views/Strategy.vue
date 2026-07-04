@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchStrategyList, toggleStrategy, deleteStrategy } from '../api/strategy.js'
-import { ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElInputNumber, ElButton, ElPagination, ElIcon } from 'element-plus'
+import { ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElInputNumber, ElButton, ElPagination, ElIcon, ElMessage } from 'element-plus'
 import { Search, Refresh } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -62,9 +62,10 @@ async function loadData() {
       strategies.value = Array.isArray(res) ? res : []
     }
   } catch (error) {
-    console.error(error)
+    ElMessage.error(error?.message || '加载策略列表失败')
+  } finally {
+    loading.value = false
   }
-  loading.value = false
 }
 
 function handleSearch() {
@@ -89,9 +90,10 @@ async function remove(s) {
   if (!confirm(`确认删除策略"${s.name}"？`)) return
   try {
     await deleteStrategy(s.id)
-    loadData()
+    ElMessage.success('删除成功')
+    await loadData()
   } catch (e) {
-    console.error(e)
+    ElMessage.error(e?.message || '删除失败')
   }
 }
 </script>

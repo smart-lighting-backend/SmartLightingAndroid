@@ -91,11 +91,7 @@ export function updateStrategy(id, data) {
 
 // ── 删除策略 DELETE /api/policies/{id} ────────────────────────────────────
 export function deleteStrategy(id) {
-  return safeCall(
-    () => request.delete(`/api/policies/${id}`),
-    null,
-    `DELETE /api/policies/${id}`
-  )
+  return request.delete(`/api/policies/${id}`)
 }
 
 // ── 启用/禁用策略 PUT /api/policies/{id}/toggle ───────────────────────────
