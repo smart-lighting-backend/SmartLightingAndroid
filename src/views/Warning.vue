@@ -1,11 +1,13 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { fetchAlarmPage, ALARM_STATUS_MAP, ALARM_LEVEL_MAP, ALARM_TYPE_MAP } from '../api/warnings.js'
+import { fetchAlarmPage, fetchAlarmExportList, ALARM_STATUS_MAP, ALARM_LEVEL_MAP, ALARM_TYPE_MAP } from '../api/warnings.js'
+import { buildAlarmCsvContent, formatAlarmTime } from '../utils/alarmExport.js'
 
 const alarms  = ref([])
 const total   = ref(0)
 const loading = ref(false)
+const exporting = ref(false)
 
 const filters = reactive({
   deviceId:  '',
@@ -80,65 +82,43 @@ const pageNumbers = computed(() => {
 })
 
 // 格式化时间显示
-function formatTime(iso) {
-  if (!iso) return '--'
-  try {
-    // 如果是时间戳数字或字符串数字
-    if (typeof iso === 'number' || !isNaN(Number(iso))) {
-      return new Date(Number(iso)).toLocaleString('zh-CN', { hour12: false })
-    }
-    // ISO 格式: 替换 T 为空格, 去掉毫秒和时区后缀
-    return iso
-      .replace('T', ' ')
-      .replace(/\.\d+/, '')        // 去掉毫秒 .123
-      .replace(/[Zz]$/, '')        // 去掉末尾 Z
-      .replace(/\+.*$/, '')        // 去掉时区偏移 +08:00
-      .slice(0, 19)                // 保留 2023-10-27 14:32:05 完整格式
-  } catch {
-    return iso || '--'
-  }
+function formatTime(value) {
+  return formatAlarmTime(value)
 }
 
 // 导出 CSV 报表
-function handleExport() {
-  const data = alarms.value
-  if (!data.length) {
-    ElMessage.warning('没有可导出的告警数据')
-    return
+async function handleExport() {
+  if (exporting.value) return
+  exporting.value = true
+  try {
+    const data = await fetchAlarmExportList({ ...filters })
+    if (!data.length) {
+      ElMessage.warning('没有可导出的告警数据')
+      return
+    }
+
+    const csvContent = buildAlarmCsvContent(data, {
+      levelMap: ALARM_LEVEL_MAP,
+      typeMap: ALARM_TYPE_MAP,
+      statusMap: ALARM_STATUS_MAP,
+    })
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `告警报表_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    ElMessage.success(`已导出 ${data.length} 条告警记录`)
+  } catch (error) {
+    ElMessage.error(error?.message || '导出告警数据失败')
+  } finally {
+    exporting.value = false
   }
-
-  // 表头
-  const headers = ['告警ID', '设备编号', '级别', '告警类型', '告警原因', '发生时间', '恢复时间', '状态', '处理人']
-  // 数据行
-  const rows = data.map(a => [
-    a.id,
-    a.deviceId,
-    ALARM_LEVEL_MAP[a.level]?.label || a.level,
-    ALARM_TYPE_MAP[a.type] || a.type,
-    a.reason || '--',
-    formatTime(a.startAt),
-    a.recoverAt ? formatTime(a.recoverAt) : '--',
-    ALARM_STATUS_MAP[a.status]?.label || a.status,
-    a.handler || '--',
-  ])
-
-  // 组装 CSV
-  const csvContent = [headers, ...rows]
-    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    .join('\n')
-
-  // 添加 BOM 让 Excel 正确识别 UTF-8
-  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `告警报表_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.csv`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-
-  ElMessage.success(`已导出 ${data.length} 条告警记录`)
 }
 
 // 告警类型中文显示
@@ -157,9 +137,9 @@ onMounted(loadData)
         <h1 class="page-title">告警列表</h1>
         <p class="page-sub">实时监控全域设备状态，快速定位并处理异常事件。</p>
       </div>
-      <button class="export-btn" @click="handleExport">
+      <button class="export-btn" :disabled="exporting" @click="handleExport">
         <svg viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        导出报表
+        {{ exporting ? '导出中...' : '导出报表' }}
       </button>
     </div>
 
@@ -293,6 +273,7 @@ onMounted(loadData)
 .export-btn { display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(0,80,140,0.25); border: 1px solid rgba(0,120,200,0.35); border-radius: 8px; color: rgba(140,200,230,0.9); font-size: 13px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
 .export-btn svg { width: 15px; height: 15px; }
 .export-btn:hover { background: rgba(0,120,200,0.2); border-color: rgba(77,208,225,0.4); color: #4dd0e1; }
+.export-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
 /* Filter bar */
 .filter-bar { background: rgba(8,20,45,0.8); border: 1px solid rgba(0,120,200,0.15); border-radius: 10px; padding: 16px 20px; display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }

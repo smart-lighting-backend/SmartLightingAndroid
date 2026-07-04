@@ -21,6 +21,8 @@
 import request from './request.js'
 import { reportMock } from '../utils/mockStore.js'
 
+const EXPORT_PAGE_SIZE = 500
+
 // ── 状态/级别/类型映射 ──────────────────────────────────────────────────────
 export const ALARM_STATUS_MAP = {
   ACTIVE:       { label: '待处理', cls: 'pending' },
@@ -114,6 +116,36 @@ export function fetchAlarmPage(params = {}) {
     { records: paged, total, size, current, pages: Math.ceil(total / size) },
     'POST /api/alarms/list'
   )
+}
+
+export async function fetchAlarmExportList(params = {}) {
+  const allRecords = []
+  let pageNum = 1
+  let total = 0
+  let pages = 1
+
+  do {
+    const res = await fetchAlarmPage({
+      ...params,
+      pageNum,
+      pageSize: EXPORT_PAGE_SIZE,
+    })
+    const pageData = res.data || res || {}
+    const records = Array.isArray(pageData.records) ? pageData.records : []
+
+    if (pageNum === 1) {
+      total = Number(pageData.total) || records.length
+      pages = Number(pageData.pages) || Math.max(1, Math.ceil(total / EXPORT_PAGE_SIZE))
+    }
+
+    allRecords.push(...records)
+    if (!records.length) {
+      break
+    }
+    pageNum += 1
+  } while (allRecords.length < total && pageNum <= pages)
+
+  return allRecords
 }
 
 // ── 告警详情 GET /api/alarms/{id} ─────────────────────────────────────────
