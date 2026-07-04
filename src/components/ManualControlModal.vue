@@ -8,6 +8,7 @@ const nodes = ref([])
 const selectedNode = ref(null)
 const power = ref(true)
 const brightness = ref(75)
+const hasChanges = ref(false)
 const logs = ref([
   { time: '14:00:12', type: 'system', text: '系统初始化连接完成 ...' },
   { time: '14:01:05', text: '节点状态同步：在线，亮度 50%' },
@@ -76,9 +77,18 @@ function currentDeviceId() {
   return selectedNode.value?.deviceId || selectedNode.value?.id
 }
 
+function closeModal() {
+  if (hasChanges.value) {
+    window.location.reload()
+  } else {
+    closeModal()
+  }
+}
+
 async function togglePower() {
   if (!selectedNode.value) return
   power.value = !power.value
+  hasChanges.value = true
   // 接口文档: action 为 ON / OFF / DIMMING
   const action = power.value ? 'ON' : 'OFF'
   addLog(`🔌 指令已下发：主路灯电源 ${action}`, 'cmd')
@@ -95,6 +105,7 @@ async function togglePower() {
 
 async function setBrightness() {
   if (!selectedNode.value) return
+  hasChanges.value = true
   // 接口文档: DIMMING 指令必须提供 brightness(0-100)
   addLog(`🌟 指令已下发：设置亮度 ${brightness.value}%`, 'cmd')
   sending.value = true
@@ -142,6 +153,7 @@ const manualExpireText = computed(() => {
 
 async function releaseManualLock() {
   if (!selectedNode.value) return
+  hasChanges.value = true
   addLog('🔓 正在解除手动锁定 ...')
   try {
     await unlockDevice(currentDeviceId())
@@ -157,10 +169,10 @@ async function releaseManualLock() {
 </script>
 
 <template>
-  <div class="modal-overlay" @click.self="emit('close')">
+  <div class="modal-overlay" @click.self="closeModal()">
     <div class="modal-panel">
       <!-- 关闭 -->
-      <button class="modal-close" @click="emit('close')">
+      <button class="modal-close" @click="closeModal()">
         <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
 
