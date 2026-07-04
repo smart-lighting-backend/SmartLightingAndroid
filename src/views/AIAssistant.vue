@@ -1,6 +1,7 @@
 <script setup>
-import { ref, reactive } from 'vue'
-import { sendChatMessage } from '../api/assistant.js'
+import { ref, reactive, onMounted } from 'vue'
+import { sendChatMessage, diagnoseDevice } from '../api/assistant.js'
+import { fetchDeviceList } from '../api/devices.js'
 
 const messages = ref([
   { role: 'assistant', text: '你好！我是智慧路灯节能系统的 AI 助手。基于 MaxKB 知识库，我可以帮助你解答路灯故障排查，也可以帮你动态调整系统阈值（例如："把阈值调到30"）。请问有什么可以帮您？' },
@@ -9,6 +10,31 @@ const input = ref('')
 const loading = ref(false)
 
 const suggestions = ['灯不亮怎么办', '把阈值调到30', '当前有哪些设备异常？', '如何优化节能策略？']
+const deviceList = ref([])
+const selectedDevice = ref('')
+
+onMounted(async () => {
+  try {
+    const list = await fetchDeviceList()
+    deviceList.value = Array.isArray(list) ? list : (list?.data?.records || [])
+  } catch { deviceList.value = [] }
+})
+
+async function runDiagnose() {
+  if (!selectedDevice.value) return
+  loading.value = true
+  const label = '诊断设备: ' + selectedDevice.value
+  messages.value.push({ role: 'user', text: label })
+  try {
+    const res = await diagnoseDevice(selectedDevice.value, '')
+    if (res?.data) {
+      messages.value.push({ role: 'assistant', text: res.data.content || '诊断完成', type: 'KNOWLEDGE_QA' })
+    }
+  } catch {
+    messages.value.push({ role: 'assistant', text: '诊断请求失败，请检查服务状态。' })
+  }
+  loading.value = false
+}
 
 async function sendMessage(text) {
   const q = text || input.value.trim()
@@ -69,6 +95,14 @@ async function sendMessage(text) {
         </div>
       </div>
 
+      <div class="diagnose-bar">
+        <select v-model="selectedDevice" class="device-select">
+          <option value="">— 选择设备 —</option>
+          <option v-for="d in deviceList" :key="d.deviceId || d.id" :value="d.deviceId">{{ d.deviceId }} {{ d.name }}</option>
+        </select>
+        <button class="diagnose-btn" @click="runDiagnose" :disabled="loading || !selectedDevice">一键诊断</button>
+      </div>
+
       <div class="suggestions">
         <button v-for="s in suggestions" :key="s" class="suggestion-chip" @click="sendMessage(s)">{{ s }}</button>
       </div>
@@ -115,6 +149,12 @@ async function sendMessage(text) {
 .typing span:nth-child(2) { animation-delay: 0.2s; }
 .typing span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+.diagnose-bar { display: flex; gap: 8px; padding: 10px 16px; border-top: 1px solid rgba(0,120,200,0.08); }
+.device-select { flex: 1; height: 36px; padding: 0 10px; background: rgba(0,20,50,0.7); border: 1px solid rgba(0,100,160,0.3); border-radius: 7px; color: #d0eaf8; font-size: 12px; outline: none; cursor: pointer; }
+.device-select:focus { border-color: rgba(77,208,225,0.4); }
+.diagnose-btn { padding: 7px 18px; background: linear-gradient(135deg, rgba(0,150,136,0.3), rgba(0,200,180,0.2)); border: 1px solid rgba(0,200,180,0.3); border-radius: 7px; color: rgba(150,240,230,0.9); font-size: 13px; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+.diagnose-btn:hover:not(:disabled) { background: rgba(0,200,180,0.3); border-color: rgba(0,255,220,0.5); }
+.diagnose-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .suggestions { padding: 10px 16px; display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid rgba(0,80,140,0.1); }
 .suggestion-chip {
   padding: 5px 12px; background: rgba(0,60,120,0.25);

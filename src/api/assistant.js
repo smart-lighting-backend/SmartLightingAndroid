@@ -38,3 +38,8 @@ export async function sendChatMessage(message) {
     return { code: 200, msg: 'mock', data: mockData }
   }
 }
+
+/** 设备一键诊断 POST /api/assistant/diagnose */
+export async function diagnoseDevice(deviceId, question) {
+  return request.post('/api/assistant/diagnose', { deviceId, question: question || '' }, { timeout: 60000 })
+}
