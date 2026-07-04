@@ -16,6 +16,7 @@ const showUserMenu = ref(false)
 // ═══ 动态导航菜单（遵循文档：登录后使用API返回的menus，刷新时请求/me）═══════════════════════════
 const menus = ref([])
 const loadingMenus = ref(true)
+const expandedIds = ref(new Set())
 
 // 兜底菜单数据（文档定义的完整菜单树）
 const FALLBACK_MENUS = [
@@ -39,20 +40,31 @@ const FALLBACK_MENUS = [
 async function loadMenus() {
   loadingMenus.value = true
   try {
+    console.log('[Menu] Loading menus...')
     const res = await fetchVisibleMenus()
-    const data = res?.data || res
-    if (data && Array.isArray(data) && data.length > 0) {
-      menus.value = data.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+    console.log('[Menu] API response:', JSON.stringify(res, null, 2))
+    
+    let menuData = res
+    if (res && typeof res === 'object' && 'data' in res) {
+      menuData = res.data
+    }
+    
+    if (menuData && Array.isArray(menuData) && menuData.length > 0) {
+      console.log('[Menu] Using API data, count:', menuData.length)
+      menus.value = menuData.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
       const inLocal = !!localStorage.getItem('smart_light_token')
       saveMenus(menus.value, inLocal)
     } else {
       const cached = getMenus()
+      console.log('[Menu] API data empty, trying cache:', cached?.length || 0)
       if (cached && cached.length > 0) {
         menus.value = cached.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
       } else {
+        console.log('[Menu] Cache empty, using fallback menus')
         menus.value = FALLBACK_MENUS
       }
     }
+    console.log('[Menu] Final menus:', JSON.stringify(menus.value, null, 2))
   } catch (error) {
     console.warn('[Menu] Failed to fetch menus from API, using cache or fallback', error)
     const cached = getMenus()
@@ -96,6 +108,7 @@ function flattenMenu(items) {
 }
 
 function isExpanded(item) {
+  if (expandedIds.value.has(item.id)) return true
   if (activeNav.value === item.id) return true
   if (item.children && item.children.length > 0) {
     return item.children.some(c => activeNav.value === c.id)
@@ -128,6 +141,13 @@ function logout() {
 function navigateTo(item) {
   if (!item.children || item.children.length === 0) {
     router.push(item.path)
+  } else {
+    if (expandedIds.value.has(item.id)) {
+      expandedIds.value.delete(item.id)
+    } else {
+      expandedIds.value.add(item.id)
+    }
+    expandedIds.value = new Set(expandedIds.value)
   }
 }
 

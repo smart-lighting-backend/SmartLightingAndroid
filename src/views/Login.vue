@@ -96,12 +96,17 @@ onUnmounted(() => { cleanupCanvas?.() })
 
 // ─── Mock 降级（后端不可用时自动触发，对接真实接口后无需改动） ──────────────
 const MOCK_PERMISSIONS = [
-  'dashboard:read', 'device:read', 'device:create', 'device:update', 'device:delete', 'device:control',
-  'telemetry:read', 'energy:read', 'alarm:read', 'alarm:handle', 'alarm:delete',
-  'policy:read', 'policy:create', 'policy:update', 'policy:delete',
-  'assistant:read', 'audit:read', 'user:read', 'user:create', 'user:update', 'user:delete',
-  'permission:read', 'permission:create', 'permission:update', 'permission:delete',
-  'menu:read', 'menu:create', 'menu:update', 'menu:delete'
+  'dashboard', 'dashboard:read',
+  'device', 'device:read', 'device:create', 'device:update', 'device:delete', 'device:control',
+  'telemetry', 'telemetry:read',
+  'energy', 'energy:read',
+  'alarm', 'alarm:read', 'alarm:handle', 'alarm:delete',
+  'policy', 'policy:read', 'policy:create', 'policy:update', 'policy:delete',
+  'assistant', 'assistant:read',
+  'audit', 'audit:read',
+  'user', 'user:read', 'user:create', 'user:update', 'user:delete',
+  'permission', 'permission:read', 'permission:create', 'permission:update', 'permission:delete',
+  'menu', 'menu:read', 'menu:create', 'menu:update', 'menu:delete'
 ]
 
 const MOCK_MENUS = [
