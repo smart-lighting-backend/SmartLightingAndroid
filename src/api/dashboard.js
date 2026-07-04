@@ -61,3 +61,15 @@ export function triggerEnergyCalc() {
 export function genTestData(days = 30) {
   return request.post('/api/dashboard/energy/gen-test-data', null, { params: { days }, timeout: 120000 })
 }
+
+export function fetchYearlyStats(year) {
+  return request.get('/api/dashboard/energy/yearly-stats', { params: { year } })
+}
+
+export function fetchMonthlyEnergy(year) {
+  return request.get('/api/dashboard/energy/monthly', { params: { year } })
+}
+
+export function fetchDistrictEnergy(year) {
+  return request.get('/api/dashboard/energy/district', { params: { year } })
+}

@@ -1,28 +1,31 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
-import * as echarts from 'echarts';
-import { fetchEnergyTrend } from '../api/dashboard';
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import * as echarts from 'echarts'
+import { fetchEnergyTrend } from '../api/dashboard'
 
-const chartRef = ref(null);
-const loading = ref(true);
-let chart = null;
+const chartRef = ref(null)
+const loading = ref(true)
+const empty = ref(false)
+const error = ref('')
+let chart = null
 
 const initChart = async () => {
-  loading.value = true;
+  loading.value = true
+  empty.value = false
+  error.value = ''
   try {
-    const res = await fetchEnergyTrend();
-    let data = res.data || {};
+    const res = await fetchEnergyTrend()
+    const data = res.data || {}
 
     if (!data.labels || !data.current || data.current.length === 0 || data.current.every(v => v === 0)) {
-      const hours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
-      const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-      data = { labels: hours, current: hours.map(() => rand(180, 420)), lastWeek: hours.map(() => rand(200, 450)) };
+      empty.value = true
+      return
     }
 
-    await nextTick();
-    if (!chartRef.value || !data.labels) return;
+    await nextTick()
+    if (!chartRef.value) return
 
-    chart = echarts.init(chartRef.value, 'dark');
+    chart = echarts.init(chartRef.value, 'dark')
     chart.setOption({
       backgroundColor: 'transparent',
       grid: { top: 30, bottom: 40, left: 50, right: 24 },
@@ -34,25 +37,30 @@ const initChart = async () => {
         { name: '本日能耗', type: 'line', data: data.current, smooth: true, symbol: 'none', lineStyle: { color: '#4dd0e1', width: 2 }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(77,208,225,0.25)' }, { offset: 1, color: 'rgba(77,208,225,0.02)' }]) } },
         { name: '上周同期', type: 'line', data: data.lastWeek, smooth: true, symbol: 'none', lineStyle: { color: 'rgba(100,150,200,0.5)', width: 1.5, type: 'dashed' }, areaStyle: { color: 'transparent' } },
       ],
-    });
-    window.addEventListener('resize', () => chart?.resize());
+    })
+    window.addEventListener('resize', () => chart?.resize())
+  } catch (e) {
+    error.value = '数据加载失败，请检查后端服务'
+    console.error(e)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
-onMounted(() => { initChart(); });
-onBeforeUnmount(() => { chart?.dispose(); });
+onMounted(() => { initChart() })
+onBeforeUnmount(() => { chart?.dispose() })
 </script>
 
 <template>
   <div class="energy-page">
     <div class="page-header">
       <h1 class="page-title">能耗走势</h1>
-      <p class="page-sub">本日能耗 vs 上周同期对比</p>
+      <p class="page-sub">本日能耗 vs 上周同期对比（估算值）</p>
     </div>
     <div class="chart-card">
       <div v-if="loading" class="loading-state">加载中...</div>
+      <div v-else-if="error" class="error-state">{{ error }}</div>
+      <div v-else-if="empty" class="empty-state">暂无今日能耗数据，能耗统计于每日 23:55 自动执行</div>
       <div ref="chartRef" class="chart-area"></div>
     </div>
   </div>
@@ -65,5 +73,6 @@ onBeforeUnmount(() => { chart?.dispose(); });
 .page-sub { font-size: 13px; color: rgba(140,190,220,0.6); }
 .chart-card { background: rgba(8,20,45,0.8); border: 1px solid rgba(0,120,200,0.15); border-radius: 10px; padding: 16px 18px; }
 .chart-area { height: 360px; }
-.loading-state { display: flex; align-items: center; justify-content: center; height: 360px; color: rgba(140,190,220,0.5); font-size: 14px; }
+.loading-state, .error-state, .empty-state { display: flex; align-items: center; justify-content: center; height: 360px; color: rgba(140,190,220,0.5); font-size: 14px; }
+.error-state { color: rgba(255,100,100,0.7); }
 </style>
