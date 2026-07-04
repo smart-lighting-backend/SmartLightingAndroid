@@ -17,6 +17,7 @@ const navItems = [
   { name: 'dashboard',       label: '数字孪生',  icon: 'grid',     path: '/dashboard' },
   { name: 'devices',         label: '设备管理',  icon: 'bulb',     path: '/devices' },
   { name: 'analytics',       label: '数据报表',  icon: 'chart',    path: '/analytics' },
+  { name: 'energy-trend',   label: '能耗走势',  icon: 'energy',   path: '/energy-trend' },
   { name: 'warning',         label: '告警中心',  icon: 'warning',  path: '/warning' },
   { name: 'strategy',        label: '策略配置',  icon: 'strategy', path: '/strategy' },
   { name: 'assistant',       label: '智能助手',  icon: 'robot',    path: '/assistant' },
@@ -77,6 +78,13 @@ function logout() {
             <rect x="3" y="12" width="4" height="9" rx="1" fill="currentColor" opacity="0.6"/>
             <rect x="10" y="7" width="4" height="14" rx="1" fill="currentColor" opacity="0.8"/>
             <rect x="17" y="3" width="4" height="18" rx="1" fill="currentColor"/>
+          </svg>
+          <!-- Warning icon -->
+          <!-- Energy icon -->
+          <svg v-else-if="item.icon === 'energy'" class="nav-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M3 20l3-6h3L6 4h2l6 10h-3l2 6H7l-4-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="20" cy="18" r="2" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M20 7v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
           <!-- Warning icon -->
           <svg v-else-if="item.icon === 'warning'" class="nav-icon" viewBox="0 0 24 24" fill="none">

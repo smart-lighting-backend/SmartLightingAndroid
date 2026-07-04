@@ -80,7 +80,7 @@ const loadLogs = async () => {
       ElMessage.error(res.message || '获取系统日志失败')
     }
   } catch (e) {
-    ElMessage.error('网络错误')
+    ElMessage.error('加载失败: ' + (e.message || e))
   } finally {
     loading.value = false
   }
