@@ -40,6 +40,41 @@ const formData = ref({
   enabled: true
 })
 
+const createFormData = (user = {}) => ({
+  id: user.id ?? null,
+  username: user.username ?? '',
+  password: '',
+  realName: user.realName ?? '',
+  phone: user.phone ?? '',
+  email: user.email ?? '',
+  department: user.department ?? '',
+  areaCode: user.areaCode ?? '',
+  roleId: user.roleId ?? null,
+  enabled: user.enabled ?? true
+})
+
+const buildSubmitPayload = () => {
+  const {
+    id,
+    username,
+    password,
+    realName,
+    phone,
+    email,
+    department,
+    areaCode,
+    roleId,
+    enabled
+  } = formData.value
+  const payload = { id, username, password, realName, phone, email, department, areaCode, roleId, enabled }
+
+  if (dialogType.value === 'edit' && !payload.password) {
+    delete payload.password
+  }
+
+  return payload
+}
+
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [
@@ -109,15 +144,13 @@ const handleReset = () => {
 
 const handleAdd = () => {
   dialogType.value = 'add'
-  formData.value = {
-    id: null, username: '', password: '', realName: '', phone: '', email: '', department: '', areaCode: '', roleId: null, enabled: true
-  }
+  formData.value = createFormData()
   dialogVisible.value = true
 }
 
 const handleEdit = (row) => {
   dialogType.value = 'edit'
-  formData.value = { ...row, password: '' }
+  formData.value = createFormData(row)
   dialogVisible.value = true
 }
 
@@ -125,11 +158,7 @@ const handleSubmit = async () => {
   if (!formRef.value) return
   await formRef.value.validate(async (valid) => {
     if (valid) {
-      // Edit form drops password if empty
-      const payload = { ...formData.value }
-      if (dialogType.value === 'edit' && !payload.password) {
-        delete payload.password
-      }
+      const payload = buildSubmitPayload()
       
       try {
         if (dialogType.value === 'add') {
