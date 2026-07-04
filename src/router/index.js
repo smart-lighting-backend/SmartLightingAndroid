@@ -78,6 +78,12 @@ const routes = [
         component: () => import('../views/SystemLog.vue'),
         meta: { title: '系统日志' },
       },
+      {
+        path: 'users',
+        name: 'UserManagement',
+        component: () => import('../views/UserManagement.vue'),
+        meta: { title: '用户管理' },
+      },
       // ── 队友新增页面路由 ────────────────────────────────────────────────────
       {
         path: 'device/list',
@@ -104,10 +110,10 @@ const routes = [
         meta: { title: '告警详情' },
       },
       {
-        path: 'city/3d',
-        name: 'SmartCity3D',
-        component: () => import('../views/SmartCity3D.vue'),
-        meta: { title: '3D可视化' },
+        path: 'energy-trend',
+        name: 'EnergyTrend',
+        component: () => import('../views/EnergyTrend.vue'),
+        meta: { title: '能耗走势' },
       },
     ],
   },

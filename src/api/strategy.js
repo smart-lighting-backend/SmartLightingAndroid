@@ -3,7 +3,7 @@
  * 对齐接口文档：开发变更日志 v1.0.0 四、照明策略管理模块
  *
  * 接口列表:
- *   GET    /api/policies           策略列表
+ *   POST   /api/policies/list      分页条件查询策略列表
  *   GET    /api/policies/{id}      策略详情
  *   POST   /api/policies           新增策略
  *   PUT    /api/policies/{id}      更新策略
@@ -53,12 +53,12 @@ async function safeCall(apiFn, mockData, endpoint) {
   }
 }
 
-// ── 策略列表 GET /api/policies ─────────────────────────────────────────────
-export function fetchStrategyList() {
+// ── 策略列表 POST /api/policies/list ─────────────────────────────────────────────
+export function fetchStrategyList(query = { page: 1, size: 20 }) {
   return safeCall(
-    () => request.get('/api/policies'),
-    MOCK_POLICIES,
-    'GET /api/policies'
+    () => request.post('/api/policies/list', query),
+    { records: MOCK_POLICIES, total: MOCK_POLICIES.length },
+    'POST /api/policies/list'
   )
 }
 

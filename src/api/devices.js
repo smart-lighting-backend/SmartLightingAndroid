@@ -285,7 +285,7 @@ export function fetchAreaStatusStatistics() {
 export function controlDevice(deviceId, payload) {
   return safeCall(
     () => request.post(`/api/devices/${deviceId}/control`, payload),
-    null,
+    { code: 200, msg: 'mock', data: { id: Date.now(), deviceId, ...payload, status: 'SENT', source: 'MANUAL', issuedAt: new Date().toISOString() } },
     `POST /api/devices/${deviceId}/control`
   )
 }

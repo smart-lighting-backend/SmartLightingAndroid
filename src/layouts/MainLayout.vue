@@ -17,10 +17,12 @@ const navItems = [
   { name: 'dashboard',       label: '数字孪生',  icon: 'grid',     path: '/dashboard' },
   { name: 'devices',         label: '设备管理',  icon: 'bulb',     path: '/devices' },
   { name: 'analytics',       label: '数据报表',  icon: 'chart',    path: '/analytics' },
+  { name: 'energy-trend',   label: '能耗走势',  icon: 'energy',   path: '/energy-trend' },
   { name: 'warning',         label: '告警中心',  icon: 'warning',  path: '/warning' },
   { name: 'strategy',        label: '策略配置',  icon: 'strategy', path: '/strategy' },
   { name: 'assistant',       label: '智能助手',  icon: 'robot',    path: '/assistant' },
   { name: 'logs',            label: '系统日志',  icon: 'history',  path: '/logs' },
+  { name: 'users',           label: '用户管理',  icon: 'user',     path: '/users' },
 ]
 
 const activeNav = computed(() => {
@@ -78,6 +80,13 @@ function logout() {
             <rect x="17" y="3" width="4" height="18" rx="1" fill="currentColor"/>
           </svg>
           <!-- Warning icon -->
+          <!-- Energy icon -->
+          <svg v-else-if="item.icon === 'energy'" class="nav-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M3 20l3-6h3L6 4h2l6 10h-3l2 6H7l-4-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="20" cy="18" r="2" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M20 7v7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <!-- Warning icon -->
           <svg v-else-if="item.icon === 'warning'" class="nav-icon" viewBox="0 0 24 24" fill="none">
             <path d="M12 2L2 20h20L12 2z" fill="currentColor" opacity="0.2" stroke="currentColor" stroke-width="1.5"/>
             <path d="M12 9v5M12 16.5v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -98,6 +107,10 @@ function logout() {
           <!-- History icon -->
           <svg v-else-if="item.icon === 'history'" class="nav-icon" viewBox="0 0 24 24" fill="none">
             <path d="M12 8v4l3 3M3 12a9 9 0 1 0 18 0A9 9 0 0 0 3 12z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <!-- User icon -->
+          <svg v-else-if="item.icon === 'user'" class="nav-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
 
           <span class="nav-label">{{ item.label }}</span>

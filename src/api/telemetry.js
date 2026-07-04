@@ -40,8 +40,9 @@ function genHistoryMock(deviceId, timeRange) {
       ? base + Math.sin((hour - 6) / 12 * Math.PI) * 800
       : base * 0.3 + Math.random() * 100
 
+    const pad = (n) => String(n).padStart(2, '0')
     data.push({
-      time: ts.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+      time: `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())} ${pad(ts.getHours())}:${pad(ts.getMinutes())}:00`,
       illuminance: Math.round(lux),
       pir: Math.random() > 0.6 ? 1 : 0,
       temperature: Math.round((25 + Math.random() * 5) * 10) / 10,
@@ -97,9 +98,25 @@ export function fetchTelemetryHistory(params) {
         code: 200,
         msg: 'success',
         data: {
-          list:  res.data?.records || [],
+          list:  (res.data?.records || []).map(r => {
+            let formattedTime = '--'
+            if (Array.isArray(r.collectedAt) && r.collectedAt.length >= 6) {
+              const [y, m, d, h, min, s] = r.collectedAt
+              const pad = (n) => String(n).padStart(2, '0')
+              formattedTime = `${y}-${pad(m)}-${pad(d)} ${pad(h)}:${pad(min)}:${pad(s)}`
+            } else if (typeof r.collectedAt === 'string') {
+              formattedTime = r.collectedAt.replace('T', ' ')
+              if (formattedTime.indexOf('.') > -1) {
+                formattedTime = formattedTime.substring(0, formattedTime.indexOf('.'))
+              }
+            }
+            return {
+              ...r,
+              time: formattedTime
+            }
+          }),
           total: res.data?.total || 0,
-        },
+        }
       }
     },
     { list: genHistoryMock(deviceId, timeRange), total: 24 },

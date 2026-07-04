@@ -73,6 +73,25 @@ const formatTime = (date) => {
  second: '2-digit'
  });
 };
+
+const formatDateOnly = (dateRaw) => {
+  if (!dateRaw) return '--';
+  let dateArr = dateRaw;
+  if (typeof dateRaw === 'string' && dateRaw.includes(',')) {
+    dateArr = dateRaw.split(',').filter(x => x !== '').map(Number);
+  }
+  if (Array.isArray(dateArr) && dateArr.length >= 3) {
+    const [year, month, day] = dateArr;
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+  try {
+    const d = new Date(dateRaw);
+    if (isNaN(d.getTime())) return String(dateRaw);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  } catch(e) {
+    return String(dateRaw);
+  }
+};
 const goBack = () => {
   router.push('/devices');
 };
@@ -182,9 +201,21 @@ const updateChart = () => {
  xAxis: {
  type: 'category',
  data: historyData.value.map(item => item.time),
+ name: historyData.value.length > 0 ? ('\n\n\n' + historyData.value[0].time.substring(0, 4) + '年') : '',
+ nameLocation: 'start',
+ nameTextStyle: {
+ color: '#909399',
+ fontSize: 12,
+ padding: [0, 5, 0, 0]
+ },
  axisLabel: {
  color: '#909399',
- rotate: timeRange.value === '7d' ? 0 : 45
+ rotate: timeRange.value === '7d' ? 0 : 45,
+ formatter: function(value) {
+ if (!value) return '';
+ const match = value.match(/^\d{4}-(\d{2}-\d{2})/);
+ return match ? match[1] : value;
+ }
  },
  axisLine: {
  lineStyle: {
@@ -337,9 +368,21 @@ const updateTempHumidityChart = () => {
  xAxis: {
  type: 'category',
  data: historyData.value.map(item => item.time),
+ name: historyData.value.length > 0 ? ('\n\n\n' + historyData.value[0].time.substring(0, 4) + '年') : '',
+ nameLocation: 'start',
+ nameTextStyle: {
+ color: '#909399',
+ fontSize: 12,
+ padding: [0, 5, 0, 0]
+ },
  axisLabel: {
  color: '#909399',
- rotate: timeRange.value === '7d' ? 0 : 45
+ rotate: timeRange.value === '7d' ? 0 : 45,
+ formatter: function(value) {
+ if (!value) return '';
+ const match = value.match(/^\d{4}-(\d{2}-\d{2})/);
+ return match ? match[1] : value;
+ }
  },
  axisLine: {
  lineStyle: {
@@ -463,8 +506,7 @@ const handleTimeRangeChange = () => {
  loadHistoryData();
 };
 const handleControlCommand = async (command) => {
- if (!deviceInfo.value || deviceInfo.value.status !== 'online') {
- ElMessage.warning('设备离线，无法执行远程控制');
+ if (!deviceInfo.value) {
  return;
  }
  controlLoading.value = true;
@@ -746,7 +788,7 @@ onBeforeUnmount(() => {
           </div>
           <div class="ctrl-status-right">
             <span class="ctrl-last-action" v-if="controlHistory.length">
-              上次操作: {{ controlHistory[0]?.command_label }} · {{ controlHistory[0]?.created_at }}
+              上次操作: {{ controlHistory[0]?.command_label }} · {{ formatDateOnly(controlHistory[0]?.created_at) }}
             </span>
             <span class="ctrl-brightness-val" v-if="deviceInfo?.status === 'online'">
               亮度: {{ brightness }}%
@@ -759,7 +801,6 @@ onBeforeUnmount(() => {
           <!-- 开灯 -->
           <button
             class="ctrl-btn ctrl-on"
-            :disabled="deviceInfo?.status !== 'online'"
             :class="{ loading: controlLoading, active: lightStatus }"
             @click="handleControlCommand('turn_on')"
           >
@@ -771,7 +812,6 @@ onBeforeUnmount(() => {
           <!-- 关灯 -->
           <button
             class="ctrl-btn ctrl-off"
-            :disabled="deviceInfo?.status !== 'online'"
             :class="{ loading: controlLoading, active: !lightStatus }"
             @click="handleControlCommand('turn_off')"
           >
@@ -781,7 +821,7 @@ onBeforeUnmount(() => {
           </button>
 
           <!-- 调光 -->
-          <div class="ctrl-dim-card" :class="{ disabled: deviceInfo?.status !== 'online' }">
+          <div class="ctrl-dim-card">
             <div class="dim-header">
               <div class="dim-header-left">
                 <div class="dim-icon"><Lightning /></div>
@@ -813,7 +853,6 @@ onBeforeUnmount(() => {
                 v-model="brightness"
                 :min="0"
                 :max="100"
-                :disabled="deviceInfo?.status !== 'online'"
                 :marks="dimMarks"
                 class="dim-slider-el"
                 @change="handleControlCommand('dim')"
@@ -824,7 +863,6 @@ onBeforeUnmount(() => {
           <!-- 重启 -->
           <button
             class="ctrl-btn ctrl-restart"
-            :disabled="deviceInfo?.status !== 'online'"
             :class="{ loading: controlLoading }"
             @click="handleControlCommand('restart')"
           >
@@ -885,7 +923,7 @@ onBeforeUnmount(() => {
             <template #default="scope">
               <span class="time-cell">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="time-icon"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                {{ scope.row.created_at }}
+                {{ formatDateOnly(scope.row.created_at) }}
               </span>
             </template>
           </ElTableColumn>
@@ -893,7 +931,7 @@ onBeforeUnmount(() => {
             <template #default="scope">
               <span class="time-cell">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="time-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                {{ scope.row.executed_at || '--' }}
+                {{ formatDateOnly(scope.row.executed_at) }}
               </span>
             </template>
           </ElTableColumn>
