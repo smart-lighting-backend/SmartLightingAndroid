@@ -235,6 +235,7 @@ async function releaseManualLock() {
             step="1"
             v-model="brightness"
             class="brightness-slider"
+            :style="{ '--val': brightness + '%' }"
             :disabled="!power"
             @change="setBrightness"
           />

@@ -544,6 +544,8 @@ const handleControlCommand = async (command) => {
  if (command === 'turn_on') lightStatus.value = true;
  else if (command === 'turn_off') lightStatus.value = false;
  loadControlHistory();
+ // 重新读取设备状态，同步 latestData 中的控制状态
+ loadDeviceInfo();
  } else {
  ElMessage.error(response.message);
  }
