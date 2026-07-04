@@ -182,13 +182,7 @@ function initChart(data) {
       </div>
     </div>
 
-    <!-- 快速入口 -->
-    <div class="quick-links">
-      <button class="quick-btn" @click="router.push('/devices')">设备管理 →</button>
-      <button class="quick-btn" @click="router.push('/warning')">告警中心 →</button>
-      <button class="quick-btn" @click="router.push('/strategy')">策略配置 →</button>
-      <button class="quick-btn" @click="router.push('/analytics')">数据报表 →</button>
-    </div>
+
   </div>
 </template>
 
@@ -271,16 +265,5 @@ function initChart(data) {
 .district-progress { height: 3px; background: rgba(0,80,140,0.3); border-radius: 2px; overflow: hidden; }
 .prog-fill { height: 100%; background: linear-gradient(90deg, #4dd0e1, #4caf50); border-radius: 2px; transition: width 0.8s ease; }
 
-/* Quick links */
-.quick-links { display: flex; gap: 10px; }
-.quick-btn {
-  padding: 9px 20px;
-  background: rgba(0,60,120,0.25);
-  border: 1px solid rgba(0,120,200,0.25);
-  border-radius: 8px;
-  color: rgba(140,200,230,0.85);
-  font-size: 13px; cursor: pointer;
-  transition: all 0.2s;
-}
-.quick-btn:hover { background: rgba(0,120,200,0.2); border-color: rgba(77,208,225,0.4); color: #4dd0e1; transform: translateY(-1px); }
+
 </style>
