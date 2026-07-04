@@ -67,6 +67,12 @@ const routes = [
         meta: { title: '新建策略' },
       },
       {
+        path: 'strategy/edit/:id',
+        name: 'StrategyEdit',
+        component: () => import('../views/StrategyCreate.vue'),
+        meta: { title: '编辑策略' },
+      },
+      {
         path: 'assistant',
         name: 'AIAssistant',
         component: () => import('../views/AIAssistant.vue'),

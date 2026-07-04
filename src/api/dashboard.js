@@ -53,3 +53,23 @@ export function fetchEnergyTrend() {
 export function fetchDistrictData() {
   return safeCall(() => request.get('/api/dashboard/districts'), genDistrictData(), 'GET /api/dashboard/districts')
 }
+
+export function triggerEnergyCalc() {
+  return request.post('/api/dashboard/energy/calc', null, { timeout: 120000 })
+}
+
+export function genTestData(days = 30) {
+  return request.post('/api/dashboard/energy/gen-test-data', null, { params: { days }, timeout: 120000 })
+}
+
+export function fetchYearlyStats(year) {
+  return request.get('/api/dashboard/energy/yearly-stats', { params: { year } })
+}
+
+export function fetchMonthlyEnergy(year) {
+  return request.get('/api/dashboard/energy/monthly', { params: { year } })
+}
+
+export function fetchDistrictEnergy(year) {
+  return request.get('/api/dashboard/energy/district', { params: { year } })
+}
