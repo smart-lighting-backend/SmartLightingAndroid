@@ -4,6 +4,7 @@ import { ElButton, ElCard, ElTag, ElRadioGroup, ElRadioButton, ElRow, ElCol, ElS
 import { ArrowLeft, Lightning, Sunny, Moon, Refresh, Warning } from '@element-plus/icons-vue';
 import * as echarts from 'echarts';
 import { fetchDeviceDetail } from '../api/devices.js';
+import PerceptionPanel from '../components/PerceptionPanel.vue';
 import { fetchLatestTelemetry, fetchTelemetryHistory } from '../api/telemetry.js';
 import { sendControlCommand, getControlHistory } from '../api/control.js';
 import { useUserInfo } from '../composables/useUserInfo.js';
@@ -709,6 +710,8 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </ElCard>
+
+      <PerceptionPanel :device-id="deviceId" />
 
       <div class="section-title">
         <h3>实时遥测数据</h3>
