@@ -37,8 +37,27 @@ async function loadData() {
   try {
     const res = await fetchStrategyList(query)
     if (res && res.data) {
-      strategies.value = res.data.records || res.data.list || []
-      total.value = res.data.total || 0
+      const list = Array.isArray(res.data) ? res.data : (res.data.records || res.data.list || [])
+      strategies.value = list.map(item => {
+        let group = '--', startTime = '--', endTime = '--'
+        if (item.conditions && typeof item.conditions === 'string') {
+          try {
+            const cond = JSON.parse(item.conditions)
+            if (cond.group) group = cond.group
+            if (cond.startTime) startTime = cond.startTime
+            if (cond.endTime) endTime = cond.endTime
+          } catch (e) {}
+        }
+        return {
+          ...item,
+          group,
+          startTime,
+          endTime,
+          lastTrigger: item.lastTriggerTime || item.lastTrigger || '--',
+          triggerCount: item.triggerCount || 0
+        }
+      })
+      total.value = Array.isArray(res.data) ? res.data.length : (res.data.total || 0)
     } else {
       strategies.value = Array.isArray(res) ? res : []
     }
@@ -68,8 +87,12 @@ async function toggle(s) {
 }
 async function remove(s) {
   if (!confirm(`确认删除策略"${s.name}"？`)) return
-  await deleteStrategy(s.id)
-  strategies.value = strategies.value.filter(x => x.id !== s.id)
+  try {
+    await deleteStrategy(s.id)
+    loadData()
+  } catch (e) {
+    console.error(e)
+  }
 }
 </script>
 
@@ -141,7 +164,7 @@ async function remove(s) {
               <div class="toggle-thumb"></div>
             </div>
           </div>
-          <button class="sc-btn edit" @click="router.push('/strategy/create')">编辑</button>
+          <button class="sc-btn edit" @click="router.push('/strategy/edit/' + s.id)">编辑</button>
           <button class="sc-btn del" @click="remove(s)">删除</button>
         </div>
       </div>

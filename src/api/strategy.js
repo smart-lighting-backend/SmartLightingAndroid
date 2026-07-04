@@ -53,12 +53,12 @@ async function safeCall(apiFn, mockData, endpoint) {
   }
 }
 
-// ── 策略列表 POST /api/policies/list ─────────────────────────────────────────────
+// ── 策略列表 GET /api/policies ─────────────────────────────────────────────
 export function fetchStrategyList(query = { page: 1, size: 20 }) {
   return safeCall(
-    () => request.post('/api/policies/list', query),
+    () => request.get('/api/policies', { params: query }),
     { records: MOCK_POLICIES, total: MOCK_POLICIES.length },
-    'POST /api/policies/list'
+    'GET /api/policies'
   )
 }
 

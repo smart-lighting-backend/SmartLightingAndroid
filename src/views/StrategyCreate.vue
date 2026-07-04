@@ -1,12 +1,14 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { fetchStrategyGroups, createStrategy } from '../api/strategy.js'
+import { useRoute, useRouter } from 'vue-router'
+import { fetchStrategyGroups, createStrategy, fetchStrategyDetail, updateStrategy } from '../api/strategy.js'
 
+const route = useRoute()
 const router = useRouter()
 const groups = ref([])
 const saving = ref(false)
 const saveSuccess = ref(false)
+const isEdit = ref(false)
 
 const form = reactive({
   name: '',
@@ -29,13 +31,73 @@ onMounted(async () => {
   const res = await fetchStrategyGroups()
   groups.value = res.data || []
   if (groups.value.length) form.group = groups.value[0]
+  
+  if (route.params.id) {
+    isEdit.value = true
+    const detailRes = await fetchStrategyDetail(route.params.id)
+    if (detailRes && detailRes.data) {
+      const data = detailRes.data
+      form.name = data.name || ''
+      if (data.conditions && typeof data.conditions === 'string') {
+        try {
+          const cond = JSON.parse(data.conditions)
+          if (cond.group) form.group = cond.group
+          if (cond.startTime) form.startTime = cond.startTime
+          if (cond.endTime) form.endTime = cond.endTime
+          if (cond.illuminance) form.conditions.illuminance = cond.illuminance
+          if (cond.traffic) form.conditions.traffic = cond.traffic
+          if (cond.extraActions) {
+            form.actions.voiceAlert = !!cond.extraActions.voiceAlert
+            form.actions.nightVision = !!cond.extraActions.nightVision
+            form.actions.generateAlert = !!cond.extraActions.generateAlert
+          }
+        } catch(e) {}
+      }
+      if (data.action === 'ON') {
+        form.actions.brightness = 100
+      } else if (data.action === 'OFF') {
+        form.actions.brightness = 0
+      } else if (data.action && data.action.startsWith('DIMMING(')) {
+        const val = parseInt(data.action.replace('DIMMING(', '').replace(')', ''))
+        if (!isNaN(val)) form.actions.brightness = val
+      }
+    }
+  }
 })
 
 async function saveStrategy() {
   if (!form.name.trim()) return alert('请输入策略名称')
   saving.value = true
+  
+  let actionStr = 'DIMMING(' + form.actions.brightness + ')'
+  if (form.actions.brightness === 0) actionStr = 'OFF'
+  else if (form.actions.brightness === 100) actionStr = 'ON'
+
+  const payload = {
+    name: form.name,
+    policyType: 'SCENE',
+    conditions: JSON.stringify({
+      group: form.group,
+      startTime: form.startTime,
+      endTime: form.endTime,
+      illuminance: form.conditions.illuminance,
+      traffic: form.conditions.traffic,
+      extraActions: {
+        voiceAlert: form.actions.voiceAlert,
+        nightVision: form.actions.nightVision,
+        generateAlert: form.actions.generateAlert
+      }
+    }),
+    action: actionStr,
+    effectiveTime: `${form.startTime}-${form.endTime}`
+  }
+  
   try {
-    await createStrategy(form)
+    if (isEdit.value) {
+      await updateStrategy(route.params.id, payload)
+    } else {
+      await createStrategy(payload)
+    }
     saveSuccess.value = true
     setTimeout(() => {
       router.push('/strategy')
@@ -55,7 +117,7 @@ async function saveStrategy() {
         <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <div>
-        <h1 class="page-title">新建策略配置</h1>
+        <h1 class="page-title">{{ isEdit ? '编辑策略配置' : '新建策略配置' }}</h1>
         <p class="page-sub">配置基于环境感知与时间调度的路灯联动规则。</p>
       </div>
     </div>
