@@ -39,8 +39,12 @@ const MOCK_DEVICES = [
 ]
 
 const MOCK_TELEMETRY = {
-  'SL-001': { id: 1, deviceId: 'SL-001', illuminance: 42.5, temperature: 37.3, humidity: 69, pm25: 18, aqi: 45, pir: 1, trafficFlow: 128, collectedAt: '2026-07-02T09:18:00' },
-  'SL-004': { id: 2, deviceId: 'SL-004', illuminance: 85.0, temperature: 35.0, humidity: 60, pm25: 30, aqi: 80, pir: 0, trafficFlow: 56,  collectedAt: '2026-07-02T09:15:00' },
+  'SL-001': { id: 1, deviceId: 'SL-001', illuminance: 1256, temperature: 26.8, humidity: 45, pm25: 18, aqi: 45, pir: 1, trafficFlow: 128, collectedAt: '2026-07-05T14:35:00' },
+  'SL-002': { id: 2, deviceId: 'SL-002', illuminance: 890,  temperature: 27.2, humidity: 42, pm25: 22, aqi: 55, pir: 0, trafficFlow: 95,  collectedAt: '2026-07-05T14:34:55' },
+  'SL-003': { id: 3, deviceId: 'SL-003', illuminance: 1520, temperature: 25.5, humidity: 48, pm25: 35, aqi: 72, pir: 1, trafficFlow: 156, collectedAt: '2026-07-05T14:34:40' },
+  'SL-004': { id: 4, deviceId: 'SL-004', illuminance: 980,  temperature: 26.1, humidity: 44, pm25: 30, aqi: 80, pir: 0, trafficFlow: 56,  collectedAt: '2026-07-05T14:34:30' },
+  'SL-005': { id: 5, deviceId: 'SL-005', illuminance: 1100, temperature: 27.5, humidity: 40, pm25: 15, aqi: 38, pir: 1, trafficFlow: 178, collectedAt: '2026-07-05T14:34:20' },
+  'SL-006': { id: 6, deviceId: 'SL-006', illuminance: 750,  temperature: 28.0, humidity: 38, pm25: 10, aqi: 30, pir: 0, trafficFlow: 42,  collectedAt: '2026-07-05T14:34:10' },
 }
 
 async function safeCall(apiFn, mockData, endpoint) {
@@ -158,7 +162,27 @@ export function fetchDeviceDetail(deviceId) {
 
 // ── 融合感知面板 ─────────────────────────────────────────────────
 export function fetchDevicePerception(deviceId) {
-  return request.get(`/api/devices/${deviceId}/perception`)
+  return safeCall(
+    () => request.get(`/api/devices/${deviceId}/perception`),
+    (() => {
+      const device = MOCK_DEVICES.find(d => d.deviceId === deviceId) || MOCK_DEVICES[0]
+      const telemetry = MOCK_TELEMETRY[deviceId] || {
+        deviceId, illuminance: 0, temperature: 0, humidity: 0, pm25: 0, aqi: 0, pir: 0, trafficFlow: 0, collectedAt: new Date().toISOString()
+      }
+      return {
+        deviceId: device.deviceId,
+        deviceName: device.name,
+        status: device.status,
+        lastHeartbeatAt: device.lastHeartbeatAt,
+        healthScore: device.healthScore,
+        telemetry,
+        latestVision: null,
+        latestVoice: null,
+        recentAlarms: [],
+      }
+    })(),
+    `GET /api/devices/${deviceId}/perception`
+  )
 }
 
 // ── 新增设备 POST /api/devices ────────────────────────────────────────────
@@ -324,11 +348,71 @@ export async function fetchDeviceNodes() {
 }
 
 // ── 设备健康评分 ──────────────────────────────────────────────
+
+/** 根据存储的 healthScore 构造 Mock 健康详情（维度加权应与 score 一致） */
+function buildMockHealth(deviceId) {
+  const device = MOCK_DEVICES.find(d => d.deviceId === deviceId) || MOCK_DEVICES[0]
+  const score = Math.round(device.healthScore)
+  const level = score >= 90 ? '优秀' : score >= 70 ? '良好' : score >= 50 ? '一般' : score >= 30 ? '较差' : '危险'
+  const color = score >= 80 ? '#4caf50' : score >= 60 ? '#ffa726' : '#ef5350'
+  // 四个维度：离线频次(30%) / 通信质量(25%) / 指令响应率(25%) / 传感器状态(20%)
+  let offlineScore = Math.min(100, Math.max(10, score + (Math.random() * 20 - 10)))
+  let commScore = Math.min(100, Math.max(10, score + (Math.random() * 20 - 10)))
+  let respScore = Math.min(100, Math.max(10, score + (Math.random() * 20 - 10)))
+  let sensorScore = Math.min(100, Math.max(10, score + (Math.random() * 20 - 10)))
+  // 调整使加权平均接近 score
+  const adjust = (score - (0.30 * offlineScore + 0.25 * commScore + 0.25 * respScore + 0.20 * sensorScore)) / 4
+  offlineScore = Math.round(offlineScore + adjust)
+  commScore = Math.round(commScore + adjust)
+  respScore = Math.round(respScore + adjust)
+  sensorScore = Math.round(sensorScore + adjust)
+  return {
+    deviceId,
+    deviceName: device.name,
+    overallScore: score,
+    level,
+    levelColor: color,
+    dimensions: [
+      { name: '离线频次', score: offlineScore, weight: '30%', reason: offlineScore < 90 ? '近7天存在离线记录' : null },
+      { name: '通信质量', score: commScore, weight: '25%', reason: commScore < 90 ? '遥测上报间隔波动' : null },
+      { name: '指令响应率', score: respScore, weight: '25%', reason: respScore < 90 ? '部分指令未确认' : null },
+      { name: '传感器状态', score: sensorScore, weight: '20%', reason: sensorScore < 90 ? '部分传感器读数异常' : null },
+    ],
+    suggestion: score >= 90 ? '设备状态极佳' : score >= 70 ? '设备总体健康，建议定期巡检' : score >= 50 ? '关注设备运行状况，建议安排检查' : '设备健康度较低，建议尽快安排维修',
+    evaluatedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+  }
+}
+
 export function fetchDeviceHealth(deviceId) {
-  return request.get(`/api/devices/${deviceId}/health`)
+  return safeCall(
+    () => request.get(`/api/devices/${deviceId}/health`),
+    buildMockHealth(deviceId),
+    `GET /api/devices/${deviceId}/health`
+  )
 }
 
 export function fetchHealthSummary() {
-  return request.get('/api/devices/health/summary')
+  return safeCall(
+    () => request.get('/api/devices/health/summary'),
+    (() => {
+      const list = MOCK_DEVICES.map(d => ({
+        deviceId: d.deviceId,
+        name: d.name,
+        score: Math.round(d.healthScore),
+        level: d.healthScore >= 90 ? '优秀' : d.healthScore >= 70 ? '良好' : d.healthScore >= 50 ? '一般' : d.healthScore >= 30 ? '较差' : '危险',
+      }))
+      const scores = list.map(l => l.score)
+      const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
+      return {
+        totalDevices: MOCK_DEVICES.length,
+        healthyCount: list.filter(l => l.score >= 70).length,
+        warningCount: list.filter(l => l.score >= 50 && l.score < 70).length,
+        criticalCount: list.filter(l => l.score < 50).length,
+        averageScore: avg,
+        list,
+      }
+    })(),
+    'GET /api/devices/health/summary'
+  )
 }
 
