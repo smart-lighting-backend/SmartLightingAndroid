@@ -1,12 +1,13 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, inject } from 'vue'
 import {
   ElButton, ElTable, ElTableColumn, ElTag, ElDialog, ElForm, ElFormItem, ElInput,
   ElSelect, ElOption, ElSwitch, ElMessage, ElMessageBox, ElTree, ElCard,
   ElPopconfirm, ElEmpty, ElTooltip
 } from 'element-plus'
 import { Plus, Edit, Delete, Search, Refresh, FolderOpened } from '@element-plus/icons-vue'
-import { fetchMenuTree, fetchMenuList, createMenu, updateMenu, deleteMenu } from '../api/menu.js'
+import { fetchMenuTree, fetchMenuList, createMenu, updateMenu, deleteMenu, fetchVisibleMenus } from '../api/menu.js'
+import { saveMenus } from '../api/auth.js'
 import { useUserInfo } from '../composables/useUserInfo.js'
 
 const { hasPerm } = useUserInfo()
@@ -56,6 +57,32 @@ const flatMenuTree = (nodes, result = []) => {
 
 const flatOptions = computed(() => flatMenuTree(treeData.value))
 
+// 编辑模式下需要排除自身及子孙，防止循环引用
+const editingId = ref(null)
+
+// 收集某个节点的所有子孙 ID
+const collectDescendantIds = (nodes, targetId) => {
+  for (const node of nodes) {
+    if (node.id === targetId) {
+      const ids = []
+      const walk = (n) => { ids.push(n.id); n.children?.forEach(walk) }
+      node.children?.forEach(walk)
+      return ids
+    }
+    if (node.children?.length) {
+      const found = collectDescendantIds(node.children, targetId)
+      if (found) return found
+    }
+  }
+  return []
+}
+
+const parentOptions = computed(() => {
+  if (!editingId.value) return flatOptions.value
+  const excludeIds = new Set([editingId.value, ...collectDescendantIds(treeData.value, editingId.value)])
+  return flatOptions.value.filter(o => !excludeIds.has(o.id))
+})
+
 // 搜索过滤树
 const filteredTreeData = computed(() => {
   if (!searchText.value) return treeData.value
@@ -87,11 +114,12 @@ const defaultProps = { children: 'children', label: 'name' }
 // ─── 新增 / 编辑 ───────────────────────────
 const handleAdd = (parent) => {
   dialogType.value = 'add'
+  editingId.value = null  // 新增模式不限制
   const parentPath = parent?.path || ''
   const name = ''
   formData.value = {
     id: null,
-    parentId: parent?.id || null,
+    parentId: parent?.id ?? -1,
     name: '',
     path: '',
     component: '',
@@ -110,9 +138,10 @@ const handleAdd = (parent) => {
 
 const handleEdit = (row) => {
   dialogType.value = 'edit'
+  editingId.value = row.id  // 排除自身及子孙
   formData.value = {
     id: row.id,
-    parentId: row.parentId || null,
+    parentId: row.parentId ?? -1,  // null → -1（表示无上级）
     name: row.name || '',
     path: row.path || '',
     component: row.component || '',
@@ -130,22 +159,40 @@ const handleSubmit = async () => {
   try {
     await formRef.value.validate()
     const payload = { ...formData.value }
-    // 新增时自动生成 path（如果未填写）
-    if (dialogType.value === 'add' && !payload.path) {
-      const parent = flatOptions.value.find(o => o.id === payload.parentId)
-      const parentPath = parent?.path || ''
-      const slug = payload.name.replace(/[^\w\u4e00-\u9fa5]/g, '-').toLowerCase()
-      payload.path = parentPath ? `${parentPath}/${slug}` : `/${slug}`
-    }
+    // 确保 parentId 发送 null 而不是占位值 -1
+    if (payload.parentId == null || payload.parentId === -1) payload.parentId = null
+
     if (dialogType.value === 'add') {
+      // 新增：自动生成 path
+      if (!payload.path) {
+        const parent = flatOptions.value.find(o => o.id === payload.parentId)
+        const parentPath = parent?.path || ''
+        const code = payload.permissionCode || payload.name
+        const slug = code.toLowerCase().replace(/[^\w-]/g, '-').replace(/-+/g, '-')
+        payload.path = parentPath ? `${parentPath}/${slug}` : `/${slug}`
+      }
       await createMenu(payload)
       ElMessage.success('新增菜单成功')
     } else {
+      // 编辑：沿用原有所有字段，只更新 name 和 parentId
+      const original = menuList.value.find(m => m.id === payload.id)
+      if (original) {
+        payload.path = original.path || ''
+        payload.component = original.component || ''
+        payload.permissionCode = original.permissionCode || ''
+        payload.icon = original.icon || ''
+        payload.sort = original.sort ?? 0
+        payload.enabled = original.enabled !== false
+        // 注意：path 不随 parentId 变化而改变，
+        // 因为 path 对应真实路由（如 /system/permission），
+        // parentId 只控制侧边栏层级位置。
+      }
       await updateMenu(payload.id, payload)
       ElMessage.success('修改菜单成功')
     }
     dialogVisible.value = false
     loadData()
+    refreshSidebar()
   } catch (error) {
     if (error?.message) ElMessage.error(error.message || '操作失败')
   }
@@ -156,6 +203,7 @@ const handleDelete = async (row) => {
     await deleteMenu(row.id)
     ElMessage.success(`已删除菜单「${row.name}」`)
     loadData()
+    refreshSidebar()
   } catch {
     ElMessage.error('删除失败')
   }
@@ -164,6 +212,27 @@ const handleDelete = async (row) => {
 const statusTag = (enabled) => enabled
   ? { type: 'success', text: '启用' }
   : { type: 'danger', text: '停用' }
+
+// 从 MainLayout 获取侧边栏刷新方法
+const reloadSidebarMenus = inject('reloadSidebarMenus', null)
+
+// 修改菜单后同步刷新左侧导航栏
+const refreshSidebar = async () => {
+  try {
+    const res = await fetchVisibleMenus()
+    const menus = res?.data || res
+    if (menus && Array.isArray(menus)) {
+      const inLocal = !!localStorage.getItem('smart_light_token')
+      saveMenus(menus, inLocal)
+      // 直接通知 MainLayout 重新加载菜单
+      if (reloadSidebarMenus) {
+        reloadSidebarMenus()
+      }
+    }
+  } catch {
+    // 静默失败，不影响主流程
+  }
+}
 
 onMounted(() => loadData())
 </script>
@@ -324,9 +393,10 @@ onMounted(() => loadData())
             <ElInput v-model="formData.name" placeholder="如：用户管理" />
           </ElFormItem>
           <ElFormItem label="上级菜单" prop="parentId" style="flex:1">
-            <ElSelect v-model="formData.parentId" placeholder="顶级菜单" clearable style="width:100%">
+            <ElSelect v-model="formData.parentId" placeholder="顶级菜单（无上级）" clearable style="width:100%">
+              <ElOption label="── 顶级菜单（无上级）──" :value="-1" />
               <ElOption
-                v-for="item in flatOptions"
+                v-for="item in parentOptions"
                 :key="item.id"
                 :label="item.name"
                 :value="item.id"
@@ -337,41 +407,13 @@ onMounted(() => loadData())
 
         <!-- 新增模式：提示自动填充 -->
         <div v-if="dialogType === 'add'" class="auto-hint">
-          路由路径和权限编码将根据菜单名称和上级菜单自动生成，也可在编辑后手动修改。
+          路由路径和权限编码将根据菜单名称和上级菜单自动生成。
         </div>
 
-        <!-- 编辑模式：显示全部字段 -->
-        <template v-if="dialogType === 'edit'">
-          <div class="form-row">
-            <ElFormItem label="路由路径" prop="path" style="flex:1">
-              <ElInput v-model="formData.path" placeholder="如：/system/menu" />
-            </ElFormItem>
-            <ElFormItem label="权限编码" prop="permissionCode" style="flex:1">
-              <ElInput v-model="formData.permissionCode" placeholder="如：menu" />
-            </ElFormItem>
-          </div>
-          <div class="form-row">
-            <ElFormItem label="组件路径" prop="component" style="flex:1">
-              <ElInput v-model="formData.component" placeholder="如：views/MenuManagement.vue" />
-            </ElFormItem>
-            <ElFormItem label="图标" prop="icon" style="flex:1">
-              <ElInput v-model="formData.icon" placeholder="如：grid / bulb / setting" />
-            </ElFormItem>
-          </div>
-          <div class="form-row">
-            <ElFormItem label="排序号" prop="sort" style="flex:1">
-              <ElInput
-                v-model.number="formData.sort"
-                type="number"
-                :min="0"
-                placeholder="0"
-              />
-            </ElFormItem>
-            <ElFormItem label="启用状态" prop="enabled" style="flex:1">
-              <ElSwitch v-model="formData.enabled" />
-            </ElFormItem>
-          </div>
-        </template>
+        <!-- 编辑模式：提示沿用现有数据 -->
+        <div v-if="dialogType === 'edit'" class="auto-hint">
+          路径、权限编码、图标等将沿用现有数据；修改上级菜单后路径会自动调整。
+        </div>
       </ElForm>
       <template #footer>
         <div class="dialog-footer">

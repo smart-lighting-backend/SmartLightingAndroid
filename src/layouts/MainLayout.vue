@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserInfo } from '../composables/useUserInfo.js'
 import { clearAuth, getMenus, saveMenus, refreshPermissionsAndMenus, getUserInfo, getPermissions } from '../api/auth.js'
@@ -145,9 +145,12 @@ function logout() {
 }
 
 function navigateTo(item) {
-  if (!item.children || item.children.length === 0) {
+  // 如果菜单有路由路径，先导航
+  if (item.path) {
     router.push(item.path)
-  } else {
+  }
+  // 如果有子菜单，同时切换展开/折叠
+  if (item.children && item.children.length > 0) {
     if (expandedIds.value.has(item.id)) {
       expandedIds.value.delete(item.id)
     } else {
@@ -186,6 +189,9 @@ function autoExpandMenus() {
   menus.value.forEach(checkItem)
   expandedIds.value = autoExpand
 }
+
+// 暴露刷新方法给子组件（菜单管理页面）
+provide('reloadSidebarMenus', loadMenus)
 
 onMounted(async () => {
   await refreshPermissionsAndMenus()
