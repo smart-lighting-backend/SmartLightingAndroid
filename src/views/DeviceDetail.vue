@@ -772,7 +772,7 @@ onBeforeUnmount(() => {
       </ElCard>
 
       <!-- 融合感知面板 -->
-      <PerceptionPanel :deviceId="deviceId" />
+      <PerceptionPanel v-if="deviceId" :deviceId="deviceId" />
 
       <div class="section-title">
         <h3>实时遥测数据</h3>

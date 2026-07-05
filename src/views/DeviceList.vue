@@ -22,7 +22,7 @@ import {
   Camera,
   Bell
 } from '@element-plus/icons-vue'
-import { fetchDeviceList } from '../api/device'
+import { fetchDeviceList, STATUS_MAP } from '../api/devices.js'
 
 const router = useRouter()
 
@@ -32,9 +32,10 @@ const loading = ref(false)
 const viewMode = ref('table')
 
 const getStatusTag = (status) => {
-  return status === 'online'
-    ? { type: 'success', text: '在线' }
-    : { type: 'danger', text: '离线' }
+  const meta = STATUS_MAP[status]
+  if (!meta) return { type: 'info', text: '未知' }
+  const typeMap = { online: 'success', offline: 'danger', warning: 'warning', disabled: 'info' }
+  return { type: typeMap[meta.cls] || 'info', text: meta.label }
 }
 
 const getHealthScoreColor = (score) => {
@@ -49,10 +50,8 @@ const handleSearch = async () => {
   if (searchKeyword.value.trim()) {
     params.keyword = searchKeyword.value.trim()
   }
-  const res = await fetchDeviceList(params)
-  if (res.code === 200) {
-    deviceList.value = res.data.list
-  }
+  const list = await fetchDeviceList(params)
+  deviceList.value = Array.isArray(list) ? list : []
   loading.value = false
 }
 
@@ -62,7 +61,17 @@ const handleReset = () => {
 }
 
 const handleViewDetail = (deviceId) => {
-  router.push(`/device/detail/${deviceId}`)
+  router.push(`/devices/${deviceId}`)
+}
+
+const formatTime = (iso) => {
+  if (!iso) return '--'
+  if (Array.isArray(iso)) {
+    const [y, m, d, h, mi] = iso
+    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')} ${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')}`
+  }
+  const s = String(iso).replace('T', ' ')
+  return s.length > 16 ? s.slice(0, 16) : s
 }
 
 const toggleViewMode = (mode) => {
@@ -116,7 +125,7 @@ onMounted(() => {
         <Camera />
         3D可视化
       </ElButton>
-      <ElButton type="warning" @click="router.push('/alarm/list')">
+      <ElButton type="warning" @click="router.push('/warning')">
         <Bell />
         告警日志
       </ElButton>
@@ -129,12 +138,12 @@ onMounted(() => {
         border
         stripe
         style="width: 100%"
-        @row-click="(row) => handleViewDetail(row.id)"
+        @row-click="(row) => handleViewDetail(row.deviceId)"
         row-class-name="clickable-row"
       >
-        <ElTableColumn prop="id" label="设备ID" width="120" />
+        <ElTableColumn prop="deviceId" label="设备ID" width="120" />
         <ElTableColumn prop="name" label="设备名称" min-width="180" />
-        <ElTableColumn prop="region" label="区域" min-width="180" />
+        <ElTableColumn prop="area" label="区域" min-width="180" />
         <ElTableColumn prop="status" label="状态" width="100">
           <template #default="{ row }">
             <ElTag :type="getStatusTag(row.status).type">
@@ -155,13 +164,17 @@ onMounted(() => {
             </div>
           </template>
         </ElTableColumn>
-        <ElTableColumn prop="lastHeartbeat" label="最后心跳时间" min-width="180" />
+        <ElTableColumn label="最后心跳时间" min-width="180">
+          <template #default="{ row }">
+            {{ formatTime(row.lastHeartbeatAt) }}
+          </template>
+        </ElTableColumn>
         <ElTableColumn label="操作" width="100" fixed="right">
           <template #default="{ row }">
             <ElButton
               type="primary"
               link
-              @click.stop="handleViewDetail(row.id)"
+              @click.stop="handleViewDetail(row.deviceId)"
             >
               <View />
               查看详情
@@ -173,23 +186,23 @@ onMounted(() => {
       <ElRow v-else :gutter="20">
         <ElCol
           v-for="device in deviceList"
-          :key="device.id"
+          :key="device.deviceId"
           :span="6"
           class="card-col"
         >
           <ElCard
             class="device-card"
             hover
-            @click="handleViewDetail(device.id)"
+            @click="handleViewDetail(device.deviceId)"
           >
             <div class="card-header">
-              <span class="device-id">{{ device.id }}</span>
+              <span class="device-id">{{ device.deviceId }}</span>
               <ElTag :type="getStatusTag(device.status).type" size="small">
                 {{ getStatusTag(device.status).text }}
               </ElTag>
             </div>
             <h3 class="device-name">{{ device.name }}</h3>
-            <div class="device-region">{{ device.region }}</div>
+            <div class="device-region">{{ device.area }}</div>
             <div class="health-section">
               <span class="health-label">健康评分</span>
               <div class="health-info">
@@ -209,10 +222,10 @@ onMounted(() => {
             </div>
             <div class="last-heartbeat">
               <span class="label">最后心跳：</span>
-              <span class="value">{{ device.lastHeartbeat }}</span>
+              <span class="value">{{ formatTime(device.lastHeartbeatAt) }}</span>
             </div>
             <div class="card-actions">
-              <ElButton type="primary" @click.stop="handleViewDetail(device.id)">
+              <ElButton type="primary" @click.stop="handleViewDetail(device.deviceId)">
                 <View />
                 查看详情
               </ElButton>

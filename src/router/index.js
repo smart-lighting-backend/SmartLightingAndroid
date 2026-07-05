@@ -104,30 +104,22 @@ const routes = [
         component: () => import('../views/MenuManagement.vue'),
         meta: { title: '菜单管理', adminOnly: true },
       },
-      // ── 队友新增页面路由 ────────────────────────────────────────────────────
+      // ── 旧路由重定向 → 统一路径规范 ──────────────────────────────────────────
       {
         path: 'device/list',
-        name: 'DeviceList',
-        component: () => import('../views/DeviceList.vue'),
-        meta: { title: '设备列表' },
+        redirect: '/devices',
       },
       {
         path: 'device/detail/:id',
-        name: 'DeviceDetailV2',
-        component: () => import('../views/DeviceDetail.vue'),
-        meta: { title: '设备详情' },
+        redirect: to => `/devices/${to.params.id}`,
       },
       {
         path: 'alarm/list',
-        name: 'AlarmList',
-        component: () => import('../views/AlarmList.vue'),
-        meta: { title: '告警日志' },
+        redirect: '/warning',
       },
       {
         path: 'alarm/detail/:id',
-        name: 'AlarmDetail',
-        component: () => import('../views/AlarmDetail.vue'),
-        meta: { title: '告警详情' },
+        redirect: '/warning',
       },
       {
         path: 'energy',

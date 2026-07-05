@@ -223,8 +223,17 @@ export async function fetchDeviceList(params = {}) {
   const body = {}
   if (params.area !== undefined && params.area !== null)   body.area   = params.area
   if (params.status !== undefined && params.status !== null) body.status = params.status
+  if (params.keyword)                                       body.name   = params.keyword
 
   let mockList = activeMockDevices()
+  if (params.keyword) {
+    const kw = params.keyword.toLowerCase()
+    mockList = mockList.filter(d =>
+      d.deviceId.toLowerCase().includes(kw) ||
+      d.name.toLowerCase().includes(kw) ||
+      (d.location || '').toLowerCase().includes(kw)
+    )
+  }
   if (body.area)   mockList = mockList.filter(d => d.area   === body.area)
   if (body.status !== undefined) mockList = mockList.filter(d => d.status === body.status)
 

@@ -7,6 +7,7 @@ const props = defineProps({ deviceId: { type: String, required: true } })
 const data = ref(null)
 
 async function load() {
+  if (!props.deviceId) return
   try {
     const res = await fetchDevicePerception(props.deviceId)
     if (res?.data) data.value = res.data
