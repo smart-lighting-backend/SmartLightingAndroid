@@ -318,3 +318,12 @@ export async function fetchDeviceNodes() {
   return res || []
 }
 
+// ── 设备健康评分 ──────────────────────────────────────────────
+export function fetchDeviceHealth(deviceId) {
+  return request.get(`/api/devices/${deviceId}/health`)
+}
+
+export function fetchHealthSummary() {
+  return request.get('/api/devices/health/summary')
+}
+

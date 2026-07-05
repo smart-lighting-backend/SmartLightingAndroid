@@ -2,6 +2,7 @@
 import { useRoute, useRouter } from 'vue-router';
 import { ElButton, ElCard, ElTag, ElRadioGroup, ElRadioButton, ElRow, ElCol, ElSlider, ElTable, ElTableColumn, ElMessage, ElMessageBox } from 'element-plus';
 import { ArrowLeft, Lightning, Sunny, Moon, Refresh, Warning } from '@element-plus/icons-vue';
+import { fetchDeviceHealth } from '../api/devices.js';
 import * as echarts from 'echarts';
 import { fetchDeviceDetail } from '../api/devices.js';
 import { fetchLatestTelemetry, fetchTelemetryHistory } from '../api/telemetry.js';
@@ -25,6 +26,7 @@ let resizeTimer = null;
 const controlLoading = ref(false);
 const controlHistory = ref([]);
 const lightStatus = ref(false); // true=开灯, false=关灯
+const healthDetail = ref(null); // 健康评分详情
 const brightness = ref(80);
 const controlPagination = ref({ page: 1, pageSize: 5 });
 const controlTotal = ref(0);
@@ -139,6 +141,13 @@ function applyControlState(data) {
     brightness.value = m ? parseInt(m[1]) : (data.brightness || 80)
   }
 }
+
+const loadHealth = async () => {
+  try {
+    const res = await fetchDeviceHealth(deviceId.value);
+    if (res?.data) healthDetail.value = res.data;
+  } catch { healthDetail.value = null; }
+};
 
 const loadDeviceInfo = async () => {
  loading.value = true;
@@ -594,6 +603,7 @@ onMounted(async () => {
  deviceId.value = route.params.id;
  await loadDeviceInfo();
  await initControlState();
+ loadHealth();
  loadLatestTelemetry();
  loadHistoryData();
  loadControlHistory();
@@ -704,6 +714,47 @@ onBeforeUnmount(() => {
               <div class="info-cell">
                 <span class="info-label">坐标位置</span>
                 <span class="info-value">{{ deviceInfo?.latitude || '--' }}, {{ deviceInfo?.longitude || '--' }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ElCard>
+
+      <!-- 健康评分详情 -->
+      <ElCard v-if="healthDetail" class="health-detail-card">
+        <div class="card-header">
+          <h3>设备健康评分</h3>
+          <span class="update-time">评估时间: {{ healthDetail?.evaluatedAt || '--' }}</span>
+        </div>
+        <div class="health-detail-body">
+          <div class="health-overview">
+            <div class="health-big-ring">
+              <svg viewBox="0 0 120 120" class="health-big-svg">
+                <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="10"/>
+                <circle cx="60" cy="60" r="50" fill="none" :stroke="healthDetail?.levelColor" stroke-width="10"
+                  stroke-linecap="round" transform="rotate(-90, 60, 60)"
+                  :stroke-dasharray="314.16"
+                  :stroke-dashoffset="314.16 * (1 - healthDetail.overallScore / 100)" />
+              </svg>
+              <div class="health-big-text">
+                <span class="health-big-num" :style="{ color: healthDetail?.levelColor }">{{ healthDetail?.overallScore }}</span>
+                <span class="health-big-lvl" :style="{ color: healthDetail?.levelColor }">{{ healthDetail?.level }}</span>
+              </div>
+            </div>
+            <div class="health-suggestion">{{ healthDetail?.suggestion }}</div>
+          </div>
+          <div class="health-dimensions">
+            <div v-for="d in healthDetail?.dimensions" :key="d.name" class="health-dim-row">
+              <div class="dim-header">
+                <span class="dim-name">{{ d.name }}</span>
+                <span class="dim-weight">权重 {{ d.weight }}</span>
+              </div>
+              <div class="dim-bar-wrap">
+                <div class="dim-bar" :style="{ width: d.score + '%', background: d.score >= 80 ? '#4caf50' : d.score >= 50 ? '#ff9800' : '#f44336' }"></div>
+              </div>
+              <div class="dim-footer">
+                <span class="dim-score">{{ d.score }} 分</span>
+                <span class="dim-reason" v-if="d.reason">{{ d.reason }}</span>
               </div>
             </div>
           </div>
@@ -1117,6 +1168,34 @@ onBeforeUnmount(() => {
   color: #409eff;
   font-weight: 500;
 }
+
+/* ============ 健康评分卡片 ============ */
+.health-detail-card {
+  margin-bottom: 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+}
+.health-detail-body { display: flex; gap: 32px; align-items: flex-start; padding: 0 0 16px 0; }
+.health-overview { flex-shrink: 0; text-align: center; width: 150px; }
+.health-big-svg { width: 100px; height: 100px; }
+.health-big-ring { position: relative; display: inline-block; }
+.health-big-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+.health-big-num { font-size: 26px; font-weight: 700; display: block; }
+.health-big-lvl { font-size: 12px; font-weight: 500; }
+.health-suggestion { margin-top: 8px; font-size: 12px; color: rgba(200,210,230,0.7); line-height: 1.5; padding: 0 8px; }
+.health-dimensions { flex: 1; display: flex; flex-direction: column; gap: 10px; padding-right: 16px; }
+.health-dim-row { padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.dim-header { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.dim-name { font-size: 13px; color: rgba(200,220,240,0.85); }
+.dim-weight { font-size: 11px; color: rgba(140,190,220,0.5); }
+.dim-bar-wrap { height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+.dim-bar { height: 100%; border-radius: 3px; transition: width 0.5s; }
+.dim-footer { display: flex; gap: 10px; margin-top: 2px; }
+.dim-score { font-size: 11px; font-weight: 600; color: rgba(180,210,235,0.8); }
+.dim-reason { font-size: 11px; color: rgba(200,140,80,0.7); }
 
 /* ============ 设备信息卡片 ============ */
 .device-info-card {
