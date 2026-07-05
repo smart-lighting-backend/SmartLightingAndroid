@@ -2,7 +2,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { fetchDeviceList, updateDevice, STATUS_MAP, STATUS_QUERY_MAP } from '../api/devices.js'
+import { Plus, Edit, Delete } from '@element-plus/icons-vue'
+import { createDevice, deleteDevice, fetchDeviceList, updateDevice, STATUS_MAP, STATUS_QUERY_MAP } from '../api/devices.js'
 import { useUserInfo } from '../composables/useUserInfo.js'
 
 const router = useRouter()
@@ -13,6 +14,54 @@ const togglingDeviceId = ref('')
 const search   = ref('')
 const statusFilter = ref('全部')
 const statuses = ['全部', '在线', '离线', '异常', '停用']
+const createDialogVisible = ref(false)
+const createFormRef = ref(null)
+const creatingDevice = ref(false)
+const createDialogMode = ref('create')
+const editingDeviceId = ref('')
+const deletingDeviceId = ref('')
+const createStatusOptions = [
+  { label: '在线', value: 1 },
+  { label: '离线', value: 2 },
+  { label: '异常', value: 3 },
+  { label: '停用', value: 0 },
+]
+const createForm = ref(buildCreateForm())
+
+const createRules = {
+  deviceId: [{ required: true, message: '请输入设备编号', trigger: 'blur' }],
+  status: [{ required: true, message: '请选择设备状态', trigger: 'change' }],
+  healthScore: [
+    {
+      validator: (_rule, value, callback) => {
+        if (value === '' || value === null || value === undefined) {
+          callback()
+          return
+        }
+        const score = Number(value)
+        if (Number.isNaN(score) || score < 0 || score > 100) {
+          callback(new Error('健康分需在 0 到 100 之间'))
+          return
+        }
+        callback()
+      },
+      trigger: 'change',
+    },
+  ],
+}
+
+function buildCreateForm() {
+  return {
+    deviceId: '',
+    name: '',
+    area: '',
+    location: '',
+    status: 1,
+    healthScore: 100,
+    topicPrefix: 'streetlight',
+    enabled: true,
+  }
+}
 
 async function loadDevices() {
   loading.value = true
@@ -54,6 +103,123 @@ function displayStatus(device) {
 
 function getStatusMeta(device) {
   return STATUS_MAP[displayStatus(device)] || { label: '未知', cls: 'offline' }
+}
+
+function openCreateDialog() {
+  createDialogMode.value = 'create'
+  editingDeviceId.value = ''
+  createForm.value = buildCreateForm()
+  createDialogVisible.value = true
+}
+
+function openEditDialog(device) {
+  createDialogMode.value = 'edit'
+  editingDeviceId.value = device.deviceId
+  createForm.value = {
+    deviceId: device.deviceId || '',
+    name: device.name || '',
+    area: device.area || '',
+    location: device.location || '',
+    status: displayStatus(device) ?? 1,
+    healthScore: device.healthScore ?? 100,
+    topicPrefix: device.topicPrefix || 'streetlight',
+    enabled: device.enabled !== false,
+  }
+  createDialogVisible.value = true
+}
+
+function resetCreateForm() {
+  createForm.value = buildCreateForm()
+  createDialogMode.value = 'create'
+  editingDeviceId.value = ''
+  createFormRef.value?.clearValidate?.()
+}
+
+function normalizeOptionalText(value) {
+  const text = `${value ?? ''}`.trim()
+  return text || undefined
+}
+
+function buildCreatePayload() {
+  const formStatus = Number(createForm.value.status ?? 1)
+  const enabled = formStatus === 0 ? false : createForm.value.enabled !== false
+  return {
+    deviceId: createForm.value.deviceId.trim(),
+    name: normalizeOptionalText(createForm.value.name),
+    area: normalizeOptionalText(createForm.value.area),
+    location: normalizeOptionalText(createForm.value.location),
+    status: enabled ? formStatus : 0,
+    healthScore: createForm.value.healthScore === '' || createForm.value.healthScore === null
+      ? undefined
+      : Number(createForm.value.healthScore),
+    topicPrefix: normalizeOptionalText(createForm.value.topicPrefix),
+    enabled,
+  }
+}
+
+function upsertCreatedDevice(device) {
+  if (!device?.deviceId) return
+  const idx = devices.value.findIndex(d => d.deviceId === device.deviceId)
+  if (idx === -1) {
+    devices.value.unshift(device)
+    return
+  }
+  devices.value.splice(idx, 1, { ...devices.value[idx], ...device })
+}
+
+async function submitCreateDevice() {
+  if (!createFormRef.value) return
+  const valid = await createFormRef.value.validate().catch(() => false)
+  if (!valid) return
+
+  creatingDevice.value = true
+  try {
+    const payload = buildCreatePayload()
+    if (createDialogMode.value === 'edit') {
+      const { deviceId: _deviceId, ...updatePayload } = payload
+      const res = await updateDevice(editingDeviceId.value, updatePayload)
+      const updated = res?.data || { deviceId: editingDeviceId.value, ...updatePayload }
+      upsertCreatedDevice(updated)
+      ElMessage.success('修改设备成功')
+    } else {
+      const res = await createDevice(payload)
+      const created = res?.data || { id: Date.now(), deleted: false, ...payload }
+      upsertCreatedDevice(created)
+      ElMessage.success('新增设备成功')
+    }
+    createDialogVisible.value = false
+  } catch (error) {
+    ElMessage.error(error?.message || (createDialogMode.value === 'edit' ? '修改设备失败' : '新增设备失败'))
+  } finally {
+    creatingDevice.value = false
+  }
+}
+
+async function removeDevice(device) {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除设备“${device.name || device.deviceId}”？删除后设备将从列表中移除。`,
+      '删除设备',
+      {
+        confirmButtonText: '确认删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+  } catch {
+    return
+  }
+
+  deletingDeviceId.value = device.deviceId
+  try {
+    await deleteDevice(device.deviceId)
+    devices.value = devices.value.filter(d => d.deviceId !== device.deviceId)
+    ElMessage.success('删除设备成功')
+  } catch (error) {
+    ElMessage.error(error?.message || '删除设备失败')
+  } finally {
+    deletingDeviceId.value = ''
+  }
 }
 
 async function toggleEnabled(device) {
@@ -117,6 +283,10 @@ function formatTime(iso) {
         <p class="page-sub">管理全域智慧路灯节点设备</p>
       </div>
       <div class="header-actions">
+        <button v-if="hasPerm('device:create')" class="create-device-btn" @click="openCreateDialog">
+          <Plus class="create-device-icon" />
+          新增设备
+        </button>
         <div class="search-wrap">
           <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           <input v-model="search" class="search-input" placeholder="搜索设备ID、名称或区域" />
@@ -196,8 +366,26 @@ function formatTime(iso) {
             <span class="metric-val heartbeat">{{ formatTime(d.lastHeartbeatAt) }}</span>
           </div>
         </div>
-        <div class="dc-actions" v-if="hasPerm('device:update')">
+        <div class="dc-actions" v-if="hasPerm('device:update') || hasPerm('device:delete')">
           <button
+            v-if="hasPerm('device:update')"
+            class="device-action-btn edit"
+            @click.stop="openEditDialog(d)"
+          >
+            <Edit class="device-action-icon" />
+            编辑设备
+          </button>
+          <button
+            v-if="hasPerm('device:delete')"
+            class="device-action-btn delete"
+            :disabled="deletingDeviceId === d.deviceId"
+            @click.stop="removeDevice(d)"
+          >
+            <Delete class="device-action-icon" />
+            {{ deletingDeviceId === d.deviceId ? '删除中...' : '删除设备' }}
+          </button>
+          <button
+            v-if="hasPerm('device:update')"
             class="device-toggle-btn"
             :class="d.enabled !== false ? 'stop' : 'start'"
             :disabled="togglingDeviceId === d.deviceId"
@@ -208,6 +396,65 @@ function formatTime(iso) {
         </div>
       </div>
     </div>
+
+    <ElDialog
+      v-model="createDialogVisible"
+      :title="createDialogMode === 'edit' ? '编辑设备' : '新增设备'"
+      width="560px"
+      class="device-create-dialog"
+      @closed="resetCreateForm"
+    >
+      <ElForm ref="createFormRef" :model="createForm" :rules="createRules" label-width="96px" class="device-create-form">
+        <ElFormItem label="设备编号" prop="deviceId">
+          <ElInput
+            v-model.trim="createForm.deviceId"
+            :disabled="createDialogMode === 'edit'"
+            placeholder="如 SL-007"
+            maxlength="50"
+            show-word-limit
+          />
+        </ElFormItem>
+        <ElFormItem label="设备名称" prop="name">
+          <ElInput v-model.trim="createForm.name" placeholder="如 北门-01" />
+        </ElFormItem>
+        <ElFormItem label="所属区域" prop="area">
+          <ElInput v-model.trim="createForm.area" placeholder="如 A区" />
+        </ElFormItem>
+        <ElFormItem label="安装位置" prop="location">
+          <ElInput v-model.trim="createForm.location" placeholder="如 106.5622,29.5621" />
+        </ElFormItem>
+        <ElFormItem label="设备状态" prop="status">
+          <ElSelect v-model="createForm.status" style="width: 100%">
+            <ElOption v-for="option in createStatusOptions" :key="option.value" :label="option.label" :value="option.value" />
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem label="健康分" prop="healthScore">
+          <ElInputNumber
+            v-model="createForm.healthScore"
+            :min="0"
+            :max="100"
+            :precision="2"
+            :step="1"
+            controls-position="right"
+            style="width: 100%"
+          />
+        </ElFormItem>
+        <ElFormItem label="主题前缀" prop="topicPrefix">
+          <ElInput v-model.trim="createForm.topicPrefix" placeholder="streetlight" />
+        </ElFormItem>
+        <ElFormItem label="启用状态" prop="enabled">
+          <ElSwitch v-model="createForm.enabled" active-text="启用" inactive-text="停用" />
+        </ElFormItem>
+      </ElForm>
+      <template #footer>
+        <div class="device-dialog-footer">
+          <ElButton @click="createDialogVisible = false">取消</ElButton>
+          <ElButton type="primary" :loading="creatingDevice" @click="submitCreateDevice">
+            {{ createDialogMode === 'edit' ? '保存修改' : '确定新增' }}
+          </ElButton>
+        </div>
+      </template>
+    </ElDialog>
   </div>
 </template>
 
@@ -217,6 +464,17 @@ function formatTime(iso) {
 .page-title { font-size: 22px; font-weight: 700; color: #e0f4ff; margin-bottom: 4px; }
 .page-sub { font-size: 13px; color: rgba(140,190,220,0.6); }
 .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.create-device-btn {
+  display: flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 14px;
+  background: linear-gradient(135deg, #0077cc, #0099e6);
+  border: none; border-radius: 7px;
+  color: #fff; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 2px 12px rgba(0,150,230,0.25);
+}
+.create-device-icon { width: 15px; height: 15px; flex-shrink: 0; }
+.create-device-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 18px rgba(0,150,230,0.45); }
 .search-wrap {
   display: flex; align-items: center; gap: 8px;
   background: rgba(0,20,50,0.7);
@@ -282,14 +540,32 @@ function formatTime(iso) {
 .metric-val.enabled { color: #4caf82; }
 .metric-val.disabled-text { color: #777; }
 .metric-val.heartbeat { font-size: 9px; font-family: monospace; color: rgba(140,190,220,0.6); font-weight: 400; }
-.dc-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.dc-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.device-action-btn,
 .device-toggle-btn {
   height: 28px;
-  padding: 0 12px;
+  padding: 0 10px;
   border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
+}
+.device-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.device-action-icon { width: 13px; height: 13px; flex-shrink: 0; }
+.device-action-btn.edit {
+  background: rgba(0,80,140,0.18);
+  border: 1px solid rgba(0,120,200,0.28);
+  color: rgba(140,200,230,0.9);
+}
+.device-action-btn.delete {
+  background: rgba(180,30,30,0.1);
+  border: 1px solid rgba(200,60,60,0.25);
+  color: rgba(220,100,100,0.9);
 }
 .device-toggle-btn.stop {
   background: rgba(180,30,30,0.1);
@@ -301,8 +577,19 @@ function formatTime(iso) {
   border: 1px solid rgba(0,180,120,0.25);
   color: rgba(140,220,180,0.9);
 }
+.device-action-btn:hover:not(:disabled),
 .device-toggle-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.device-action-btn.edit:hover:not(:disabled) { background: rgba(0,120,200,0.22); color: #4dd0e1; }
+.device-action-btn.delete:hover:not(:disabled) { background: rgba(180,30,30,0.2); color: #ff7070; }
 .device-toggle-btn.stop:hover:not(:disabled) { background: rgba(180,30,30,0.2); color: #ff7070; }
 .device-toggle-btn.start:hover:not(:disabled) { background: rgba(0,180,120,0.22); color: #4caf82; }
+.device-action-btn:disabled,
 .device-toggle-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.device-create-form :deep(.el-form-item__label) { color: rgba(190,220,240,0.85); }
+.device-create-form :deep(.el-input__wrapper),
+.device-create-form :deep(.el-input-number),
+.device-create-form :deep(.el-select__wrapper) {
+  background: rgba(8,20,45,0.72);
+}
+.device-dialog-footer { display: flex; justify-content: flex-end; gap: 10px; }
 </style>

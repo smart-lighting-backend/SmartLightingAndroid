@@ -17,7 +17,7 @@
  * 设备状态: 0 停用 | 1 在线 | 2 离线 | 3 异常
  */
 import request from './request.js'
-import { reportMock } from '../utils/mockStore.js'
+import mockStore, { reportMock } from '../utils/mockStore.js'
 
 // ── 状态映射工具 ───────────────────────────────────────────────────────────
 export const STATUS_MAP = {
@@ -38,6 +38,36 @@ const MOCK_DEVICES = [
   { id: 6, deviceId: 'SL-006', name: '学院路-01',   area: 'E区', location: '106.5900,29.5900', status: 1, healthScore: 95.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:14:00', enabled: true, deleted: false },
 ]
 
+const MOCK_DEVICE_STORAGE_KEY = 'smart_light_mock_devices'
+
+function loadMockDevices() {
+  if (typeof localStorage === 'undefined') {
+    return MOCK_DEVICES.map(device => ({ ...device }))
+  }
+
+  try {
+    const raw = localStorage.getItem(MOCK_DEVICE_STORAGE_KEY)
+    const parsed = raw ? JSON.parse(raw) : null
+    if (Array.isArray(parsed)) return parsed
+  } catch (error) {
+    console.warn('读取设备 Mock 缓存失败', error)
+  }
+
+  return MOCK_DEVICES.map(device => ({ ...device }))
+}
+
+const mockDevices = loadMockDevices()
+
+function persistMockDevices() {
+  if (typeof localStorage === 'undefined') return
+
+  try {
+    localStorage.setItem(MOCK_DEVICE_STORAGE_KEY, JSON.stringify(mockDevices))
+  } catch (error) {
+    console.warn('保存设备 Mock 缓存失败', error)
+  }
+}
+
 const MOCK_TELEMETRY = {
   'SL-001': { id: 1, deviceId: 'SL-001', illuminance: 1256, temperature: 26.8, humidity: 45, pm25: 18, aqi: 45, pir: 1, trafficFlow: 128, collectedAt: '2026-07-05T14:35:00' },
   'SL-002': { id: 2, deviceId: 'SL-002', illuminance: 890,  temperature: 27.2, humidity: 42, pm25: 22, aqi: 55, pir: 0, trafficFlow: 95,  collectedAt: '2026-07-05T14:34:55' },
@@ -54,8 +84,70 @@ async function safeCall(apiFn, mockData, endpoint) {
     // 业务错误（后端返回 code != 200）继续抛出，其他错误（网络/404/500）降级 Mock
     if (e?.bizCode) throw e
     if (endpoint) reportMock(endpoint)
-    return { code: 200, msg: 'mock', data: mockData }
+    const data = typeof mockData === 'function' ? mockData() : mockData
+    return { code: 200, msg: 'mock', data }
   }
+}
+
+function activeMockDevices() {
+  return mockDevices.filter(d => !d.deleted)
+}
+
+function deviceListUsesMock() {
+  return Boolean(
+    mockStore.details['POST /api/devices/list'] ||
+    mockStore.details['POST /api/devices/list (light)'] ||
+    mockStore.details['POST /api/devices/list (nodes)']
+  )
+}
+
+function applyMockCreate(data) {
+  const next = {
+    id: Date.now(),
+    deleted: false,
+    status: 1,
+    healthScore: 100.00,
+    topicPrefix: 'streetlight',
+    enabled: true,
+    ...data,
+  }
+  const idx = mockDevices.findIndex(d => d.deviceId === next.deviceId)
+  if (idx === -1) {
+    mockDevices.unshift(next)
+  } else {
+    mockDevices.splice(idx, 1, { ...mockDevices[idx], ...next, deleted: false })
+  }
+  persistMockDevices()
+  return next
+}
+
+function applyMockUpdate(deviceId, data) {
+  const idx = mockDevices.findIndex(d => d.deviceId === deviceId)
+  const next = {
+    ...(idx === -1 ? { id: Date.now(), deviceId, deleted: false } : mockDevices[idx]),
+    ...data,
+  }
+  if (idx === -1) {
+    mockDevices.unshift(next)
+  } else {
+    mockDevices.splice(idx, 1, next)
+  }
+  persistMockDevices()
+  return next
+}
+
+function applyMockDelete(deviceId) {
+  const idx = mockDevices.findIndex(d => d.deviceId === deviceId)
+  if (idx !== -1) {
+    mockDevices.splice(idx, 1, {
+      ...mockDevices[idx],
+      deleted: true,
+      enabled: false,
+      status: 0,
+    })
+    persistMockDevices()
+  }
+  return null
 }
 
 // ── 设备组合查询（分页）POST /api/devices/list ────────────────────────────
@@ -96,7 +188,7 @@ export function fetchDevicePage(params = {}) {
   if (params.healthScoreMax !== undefined) body.healthScoreMax = params.healthScoreMax
 
   // Mock 数据客户端过滤
-  let list = MOCK_DEVICES.filter(d => !d.deleted)
+  let list = activeMockDevices()
   if (params.keyword) {
     const kw = params.keyword.toLowerCase()
     list = list.filter(d =>
@@ -132,7 +224,7 @@ export async function fetchDeviceList(params = {}) {
   if (params.area !== undefined && params.area !== null)   body.area   = params.area
   if (params.status !== undefined && params.status !== null) body.status = params.status
 
-  let mockList = MOCK_DEVICES.filter(d => !d.deleted)
+  let mockList = activeMockDevices()
   if (body.area)   mockList = mockList.filter(d => d.area   === body.area)
   if (body.status !== undefined) mockList = mockList.filter(d => d.status === body.status)
 
@@ -155,7 +247,7 @@ export async function fetchDeviceList(params = {}) {
 export function fetchDeviceDetail(deviceId) {
   return safeCall(
     () => request.get(`/api/devices/${deviceId}`),
-    MOCK_DEVICES.find(d => d.deviceId === deviceId) || MOCK_DEVICES[0],
+    activeMockDevices().find(d => d.deviceId === deviceId) || activeMockDevices()[0],
     `GET /api/devices/${deviceId}`
   )
 }
@@ -165,7 +257,7 @@ export function fetchDevicePerception(deviceId) {
   return safeCall(
     () => request.get(`/api/devices/${deviceId}/perception`),
     (() => {
-      const device = MOCK_DEVICES.find(d => d.deviceId === deviceId) || MOCK_DEVICES[0]
+      const device = activeMockDevices().find(d => d.deviceId === deviceId) || activeMockDevices()[0]
       const telemetry = MOCK_TELEMETRY[deviceId] || {
         deviceId, illuminance: 0, temperature: 0, humidity: 0, pm25: 0, aqi: 0, pir: 0, trafficFlow: 0, collectedAt: new Date().toISOString()
       }
@@ -201,7 +293,7 @@ export function fetchDevicePerception(deviceId) {
 export function createDevice(data) {
   return safeCall(
     () => request.post('/api/devices', data),
-    { id: Date.now(), deleted: false, status: 1, healthScore: 100.00, topicPrefix: 'streetlight', enabled: true, ...data },
+    () => applyMockCreate(data),
     'POST /api/devices'
   )
 }
@@ -222,7 +314,7 @@ export function createDevice(data) {
 export function updateDevice(deviceId, data) {
   return safeCall(
     () => request.put(`/api/devices/${deviceId}`, data),
-    { ...(MOCK_DEVICES.find(d => d.deviceId === deviceId) || {}), ...data },
+    () => applyMockUpdate(deviceId, data),
     `PUT /api/devices/${deviceId}`
   )
 }
@@ -232,11 +324,11 @@ export function updateDevice(deviceId, data) {
  * @param {string} deviceId
  */
 export function deleteDevice(deviceId) {
-  return safeCall(
-    () => request.delete(`/api/devices/${deviceId}`),
-    null,
-    `DELETE /api/devices/${deviceId}`
-  )
+  return request.delete(`/api/devices/${deviceId}`).catch(error => {
+    if (error?.bizCode || !deviceListUsesMock()) throw error
+    reportMock(`DELETE /api/devices/${deviceId}`)
+    return { code: 200, msg: 'mock', data: applyMockDelete(deviceId) }
+  })
 }
 
 // ── 最新遥测数据 GET /api/telemetry/latest/{deviceId} ────────────────────
@@ -326,7 +418,7 @@ export function unlockDevice(deviceId) {
 
 // ── 节点列表（手动控制弹窗用） ─────────────────────────────────────────────
 export async function fetchDeviceNodes() {
-  const mockNodes = MOCK_DEVICES.map(d => ({
+  const mockNodes = activeMockDevices().map(d => ({
     deviceId: d.deviceId,
     name:     d.name,
     location: d.area + ' ' + d.location,
@@ -351,7 +443,7 @@ export async function fetchDeviceNodes() {
 
 /** 根据存储的 healthScore 构造 Mock 健康详情（维度加权应与 score 一致） */
 function buildMockHealth(deviceId) {
-  const device = MOCK_DEVICES.find(d => d.deviceId === deviceId) || MOCK_DEVICES[0]
+  const device = activeMockDevices().find(d => d.deviceId === deviceId) || activeMockDevices()[0]
   const score = Math.round(device.healthScore)
   const level = score >= 90 ? '优秀' : score >= 70 ? '良好' : score >= 50 ? '一般' : score >= 30 ? '较差' : '危险'
   const color = score >= 80 ? '#4caf50' : score >= 60 ? '#ffa726' : '#ef5350'
@@ -395,7 +487,7 @@ export function fetchHealthSummary() {
   return safeCall(
     () => request.get('/api/devices/health/summary'),
     (() => {
-      const list = MOCK_DEVICES.map(d => ({
+      const list = activeMockDevices().map(d => ({
         deviceId: d.deviceId,
         name: d.name,
         score: Math.round(d.healthScore),
@@ -404,7 +496,7 @@ export function fetchHealthSummary() {
       const scores = list.map(l => l.score)
       const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
       return {
-        totalDevices: MOCK_DEVICES.length,
+        totalDevices: activeMockDevices().length,
         healthyCount: list.filter(l => l.score >= 70).length,
         warningCount: list.filter(l => l.score >= 50 && l.score < 70).length,
         criticalCount: list.filter(l => l.score < 50).length,
