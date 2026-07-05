@@ -9,12 +9,12 @@
  */
 
 const MOCK_DEVICES = [
-  { id: 'SL-001', name: '南门-01',     region: 'A区', status: 'online',  healthScore: 98, lastHeartbeat: '2026-07-03 09:18:06' },
-  { id: 'SL-002', name: '东门-02',     region: 'A区', status: 'online',  healthScore: 85, lastHeartbeat: '2026-07-03 09:17:30' },
-  { id: 'SL-003', name: '创业大道-01', region: 'B区', status: 'offline', healthScore: 32, lastHeartbeat: '2026-07-01 22:10:00' },
-  { id: 'SL-004', name: '人民广场-01', region: 'C区', status: 'online',  healthScore: 78, lastHeartbeat: '2026-07-03 09:15:00' },
-  { id: 'SL-005', name: '工业园-01',   region: 'D区', status: 'online',  healthScore: 88, lastHeartbeat: '2026-07-03 09:16:00' },
-  { id: 'SL-006', name: '学院路-01',   region: 'E区', status: 'online',  healthScore: 95, lastHeartbeat: '2026-07-03 09:14:00' },
+  { id: 'SL-001', name: '南门-01',     region: 'A区', status: 'online',  healthScore: 98.50, lastHeartbeat: '2026-07-05 14:35:00' },
+  { id: 'SL-002', name: '东门-02',     region: 'A区', status: 'online',  healthScore: 85.00, lastHeartbeat: '2026-07-05 14:34:55' },
+  { id: 'SL-003', name: '创业大道-01', region: 'B区', status: 'offline', healthScore: 32.00, lastHeartbeat: '2026-07-04 22:10:00' },
+  { id: 'SL-004', name: '人民广场-01', region: 'C区', status: 'online',  healthScore: 78.00, lastHeartbeat: '2026-07-05 14:34:30' },
+  { id: 'SL-005', name: '工业园-01',   region: 'D区', status: 'online',  healthScore: 88.00, lastHeartbeat: '2026-07-05 14:34:20' },
+  { id: 'SL-006', name: '学院路-01',   region: 'E区', status: 'online',  healthScore: 95.00, lastHeartbeat: '2026-07-05 14:34:10' },
 ]
 
 export function fetchDeviceList(params = {}) {

@@ -9,7 +9,7 @@ const messages = ref([
 const input = ref('')
 const loading = ref(false)
 
-const suggestions = ['灯不亮怎么办', '把阈值调到30', '当前有哪些设备异常？', '如何优化节能策略？']
+const suggestions = ['把阈值调到30', '亮度调到60%', '灯不亮怎么办', '如何优化节能策略？']
 const deviceList = ref([])
 const selectedDevice = ref('')
 
@@ -34,6 +34,30 @@ async function runDiagnose() {
     messages.value.push({ role: 'assistant', text: '诊断请求失败，请检查服务状态。' })
   }
   loading.value = false
+}
+
+// 过滤 action 中的非参数 key（name/policyId/policyName 是元信息）
+function actionParams(action) {
+  if (!action) return {}
+  const meta = ['name', 'policyId', 'policyName']
+  return Object.fromEntries(Object.entries(action).filter(([k]) => !meta.includes(k)))
+}
+
+const PARAM_LABELS = {
+  luxLt: '开灯阈值', lux_lt: '开灯阈值',
+  luxGt: '关灯阈值', lux_gt: '关灯阈值',
+  tempLt: '低温触发', temp_lt: '低温触发',
+  startTime: '开始时间', endTime: '结束时间',
+  brightness: '调光亮度', enabled: '启用状态',
+}
+
+function paramLabel(key) { return PARAM_LABELS[key] || key }
+
+function formatParam(key, val) {
+  if (['luxLt','lux_lt','luxGt','lux_gt'].includes(key)) return val + ' lux'
+  if (['tempLt','temp_lt'].includes(key)) return val + '℃'
+  if (key === 'brightness') return val + '%'
+  return val
 }
 
 async function sendMessage(text) {
@@ -85,7 +109,10 @@ async function sendMessage(text) {
                 指令已执行: {{ msg.action.name }}
               </div>
               <div class="ac-detail">▸ 目标策略：{{ msg.action.policyName }} (ID: {{ msg.action.policyId }})</div>
-              <div class="ac-detail">▸ 调整参数：<span class="ac-highlight">luxLt = {{ msg.action.luxLt }}</span></div>
+              <div v-for="(val, key) in actionParams(msg.action)" :key="key" class="ac-detail">
+                ▸ {{ paramLabel(key) }}：<span class="ac-highlight">{{ formatParam(key, val) }}</span>
+              </div>
+              <router-link :to="'/strategy/edit/' + msg.action.policyId" class="ac-link">查看策略 →</router-link>
             </div>
           </div>
         </div>
@@ -190,4 +217,6 @@ async function sendMessage(text) {
 .ac-title { font-weight: 600; color: #4dd0e1; font-size: 13px; display: flex; align-items: center; gap: 5px; margin-bottom: 4px; }
 .ac-detail { font-size: 12px; color: rgba(200,230,245,0.8); line-height: 1.5; margin-left: 19px; }
 .ac-highlight { color: #f0c040; font-weight: 600; }
+.ac-link { display: inline-block; margin-top: 8px; font-size: 12px; color: #4dd0e1; text-decoration: none; transition: color 0.2s; }
+.ac-link:hover { color: #80e8f0; text-decoration: underline; }
 </style>

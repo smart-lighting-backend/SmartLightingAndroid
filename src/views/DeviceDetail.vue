@@ -72,15 +72,20 @@ const dimLevelColor = computed(() => {
 });
 const dimMarks = { 0: '0%', 25: '25%', 50: '50%', 75: '75%', 100: '100%' };
 const formatTime = (date) => {
- if (!date)
- return '--';
- return new Date(date).toLocaleString('zh-CN', {
- month: '2-digit',
- day: '2-digit',
- hour: '2-digit',
- minute: '2-digit',
- second: '2-digit'
- });
+  if (!date || date === '--') return '--';
+  if (Array.isArray(date)) {
+    const [y, m, d, h = 0, mi = 0, s = 0] = date;
+    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')} ${String(h).padStart(2,'0')}:${String(mi).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+  const dObj = new Date(date);
+  if (isNaN(dObj.getTime())) return String(date);
+  return dObj.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
 };
 
 const formatDateOnly = (dateRaw) => {
@@ -118,7 +123,7 @@ const mapDeviceInfo = (raw) => {
     healthScore: raw.healthScore ?? 0,
     region: raw.area || '--',
     lastHeartbeat: raw.lastHeartbeatAt || '--',
-    installTime: raw.installTime || '--',
+    installTime: raw.createTime || raw.installTime || '--',
     firmwareVersion: raw.firmwareVersion || 'V2.1.0',
     ipAddress: raw.ipAddress || raw.ip || '192.168.1.' + raw.id,
     latitude: lat,
