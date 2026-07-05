@@ -1,11 +1,15 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { fetchDeviceList, STATUS_MAP, STATUS_QUERY_MAP } from '../api/devices.js'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { fetchDeviceList, updateDevice, STATUS_MAP, STATUS_QUERY_MAP } from '../api/devices.js'
+import { useUserInfo } from '../composables/useUserInfo.js'
 
 const router = useRouter()
+const { hasPerm } = useUserInfo()
 const devices  = ref([])
 const loading  = ref(false)
+const togglingDeviceId = ref('')
 const search   = ref('')
 const statusFilter = ref('全部')
 const statuses = ['全部', '在线', '离线', '异常', '停用']
@@ -31,7 +35,7 @@ const filtered = computed(() => {
     const matchSearch = !kw || d.deviceId?.toLowerCase().includes(kw) || d.name?.toLowerCase().includes(kw) || d.area?.toLowerCase().includes(kw)
     if (statusFilter.value === '全部') return matchSearch
     const statusVal = STATUS_QUERY_MAP[statusFilter.value]
-    return matchSearch && d.status === statusVal
+    return matchSearch && displayStatus(d) === statusVal
   })
 })
 
@@ -42,6 +46,55 @@ function healthColor(score) {
   if (score >= 80) return '#4caf50'
   if (score >= 60) return '#ffa726'
   return '#ef5350'
+}
+
+function displayStatus(device) {
+  return device?.enabled === false ? 0 : device?.status
+}
+
+function getStatusMeta(device) {
+  return STATUS_MAP[displayStatus(device)] || { label: '未知', cls: 'offline' }
+}
+
+async function toggleEnabled(device) {
+  const currentEnabled = device.enabled !== false
+  const nextEnabled = !currentEnabled
+  const actionText = nextEnabled ? '启用' : '停用'
+  const nextStatus = nextEnabled ? 2 : 0
+
+  try {
+    await ElMessageBox.confirm(
+      `确认${actionText}设备“${device.name || device.deviceId}”？`,
+      `${actionText}设备`,
+      {
+        confirmButtonText: '确认',
+        cancelButtonText: '取消',
+        type: nextEnabled ? 'info' : 'warning',
+      }
+    )
+  } catch {
+    return
+  }
+
+  togglingDeviceId.value = device.deviceId
+  try {
+    const res = await updateDevice(device.deviceId, { enabled: nextEnabled, status: nextStatus })
+    const updated = res?.data || {}
+    const idx = devices.value.findIndex(d => d.deviceId === device.deviceId)
+    if (idx !== -1) {
+      devices.value.splice(idx, 1, {
+        ...devices.value[idx],
+        ...updated,
+        enabled: nextEnabled,
+        status: nextStatus,
+      })
+    }
+    ElMessage.success(`${actionText}成功`)
+  } catch (error) {
+    ElMessage.error(error?.message || `${actionText}失败`)
+  } finally {
+    togglingDeviceId.value = ''
+  }
 }
 
 // 格式化最后心跳时间
@@ -85,13 +138,13 @@ function formatTime(iso) {
         共 <strong>{{ filtered.length }}</strong> 台设备
       </span>
       <span class="summary-item online">
-        在线 <strong>{{ filtered.filter(d=>d.status===1).length }}</strong>
+        在线 <strong>{{ filtered.filter(d=>displayStatus(d)===1).length }}</strong>
       </span>
       <span class="summary-item offline">
-        离线 <strong>{{ filtered.filter(d=>d.status===2).length }}</strong>
+        离线 <strong>{{ filtered.filter(d=>displayStatus(d)===2).length }}</strong>
       </span>
       <span class="summary-item warning">
-        异常 <strong>{{ filtered.filter(d=>d.status===3).length }}</strong>
+        异常 <strong>{{ filtered.filter(d=>displayStatus(d)===3).length }}</strong>
       </span>
     </div>
 
@@ -113,12 +166,12 @@ function formatTime(iso) {
         @click="router.push(`/devices/${d.deviceId}`)"
       >
         <div class="dc-header">
-          <div class="dc-icon" :class="STATUS_MAP[d.status]?.cls">
+          <div class="dc-icon" :class="getStatusMeta(d).cls">
             <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7z" fill="currentColor"/></svg>
           </div>
-          <div class="status-pill" :class="STATUS_MAP[d.status]?.cls">
+          <div class="status-pill" :class="getStatusMeta(d).cls">
             <span class="dot"></span>
-            {{ STATUS_MAP[d.status]?.label || '未知' }}
+            {{ getStatusMeta(d).label }}
           </div>
         </div>
         <div class="dc-name">{{ d.name }}</div>
@@ -136,12 +189,22 @@ function formatTime(iso) {
           </div>
           <div class="metric">
             <span class="metric-label">启用</span>
-            <span class="metric-val" :class="d.enabled ? 'enabled' : 'disabled-text'">{{ d.enabled ? '是' : '否' }}</span>
+            <span class="metric-val" :class="d.enabled !== false ? 'enabled' : 'disabled-text'">{{ d.enabled !== false ? '是' : '否' }}</span>
           </div>
           <div class="metric">
             <span class="metric-label">心跳</span>
             <span class="metric-val heartbeat">{{ formatTime(d.lastHeartbeatAt) }}</span>
           </div>
+        </div>
+        <div class="dc-actions" v-if="hasPerm('device:update')">
+          <button
+            class="device-toggle-btn"
+            :class="d.enabled !== false ? 'stop' : 'start'"
+            :disabled="togglingDeviceId === d.deviceId"
+            @click.stop="toggleEnabled(d)"
+          >
+            {{ togglingDeviceId === d.deviceId ? '处理中...' : d.enabled !== false ? '停用设备' : '启用设备' }}
+          </button>
         </div>
       </div>
     </div>
@@ -219,4 +282,27 @@ function formatTime(iso) {
 .metric-val.enabled { color: #4caf82; }
 .metric-val.disabled-text { color: #777; }
 .metric-val.heartbeat { font-size: 9px; font-family: monospace; color: rgba(140,190,220,0.6); font-weight: 400; }
+.dc-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.device-toggle-btn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.device-toggle-btn.stop {
+  background: rgba(180,30,30,0.1);
+  border: 1px solid rgba(200,60,60,0.25);
+  color: rgba(220,100,100,0.9);
+}
+.device-toggle-btn.start {
+  background: rgba(0,120,80,0.15);
+  border: 1px solid rgba(0,180,120,0.25);
+  color: rgba(140,220,180,0.9);
+}
+.device-toggle-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.device-toggle-btn.stop:hover:not(:disabled) { background: rgba(180,30,30,0.2); color: #ff7070; }
+.device-toggle-btn.start:hover:not(:disabled) { background: rgba(0,180,120,0.22); color: #4caf82; }
+.device-toggle-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>

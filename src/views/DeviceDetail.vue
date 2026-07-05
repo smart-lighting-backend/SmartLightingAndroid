@@ -36,12 +36,16 @@ const timeRangeOptions = [
  { label: '近24小时', value: '24h' },
  { label: '近7天', value: '7d' }
 ];
+const DETAIL_STATUS_TAGS = {
+ disabled: { type: 'info', text: '停用' },
+ online: { type: 'success', text: '在线' },
+ offline: { type: 'warning', text: '离线' },
+ abnormal: { type: 'danger', text: '异常' },
+};
 const statusTag = computed(() => {
  if (!deviceInfo.value)
  return { type: 'info', text: '--' };
- return deviceInfo.value.status === 'online'
- ? { type: 'success', text: '在线' }
- : { type: 'danger', text: '离线' };
+ return DETAIL_STATUS_TAGS[deviceInfo.value.status] || { type: 'info', text: '未知' };
 });
 const healthScoreColor = computed(() => {
  if (!deviceInfo.value)
@@ -109,7 +113,7 @@ const mapDeviceInfo = (raw) => {
     id: raw.id,
     deviceId: raw.deviceId,
     name: raw.name || '--',
-    status: STATUS_NUM_MAP[raw.status] || 'offline',
+    status: raw.enabled === false ? 'disabled' : (STATUS_NUM_MAP[raw.status] || 'offline'),
     statusNum: raw.status,
     healthScore: raw.healthScore ?? 0,
     region: raw.area || '--',
@@ -875,7 +879,7 @@ onBeforeUnmount(() => {
           <div class="ctrl-status-left">
             <div class="ctrl-device-status" :class="deviceInfo?.status === 'online' ? 'is-online' : 'is-offline'">
               <span class="ctrl-pulse-dot"></span>
-              <span>{{ deviceInfo?.status === 'online' ? '设备在线' : '设备离线' }}</span>
+              <span>设备{{ statusTag.text }}</span>
             </div>
             <div class="ctrl-light-status" :class="lightStatus ? 'light-on' : 'light-off'">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="light-status-icon">
