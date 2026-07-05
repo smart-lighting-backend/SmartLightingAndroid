@@ -1,9 +1,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { fetchStrategyList, toggleStrategy, deleteStrategy } from '../api/strategy.js'
-import { ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElInputNumber, ElButton, ElPagination, ElIcon, ElMessage } from 'element-plus'
-import { Search, Refresh } from '@element-plus/icons-vue'
+import { fetchStrategyList, fetchStrategyHistory, toggleStrategy, deleteStrategy } from '../api/strategy.js'
+import { ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElInputNumber, ElButton, ElPagination, ElIcon, ElMessage, ElDialog } from 'element-plus'
+import { Search, Refresh, Timer } from '@element-plus/icons-vue'
 import { useUserInfo } from '../composables/useUserInfo.js'
 
 const { hasPerm } = useUserInfo()
@@ -11,6 +11,21 @@ const { hasPerm } = useUserInfo()
 const router = useRouter()
 const strategies = ref([])
 const loading = ref(false)
+const historyVisible = ref(false)
+const historyLoading = ref(false)
+const historyData = ref(null)
+const historyPolicyName = ref('')
+
+async function showHistory(s) {
+  historyPolicyName.value = s.name
+  historyVisible.value = true
+  historyLoading.value = true
+  try {
+    const res = await fetchStrategyHistory(s.id, 7)
+    historyData.value = res?.data || null
+  } catch { historyData.value = null }
+  historyLoading.value = false
+}
 
 const searchForm = ref({
   name: '',
@@ -169,12 +184,29 @@ async function remove(s) {
               <div class="toggle-thumb"></div>
             </div>
           </div>
+          <button class="sc-btn hist" @click="showHistory(s)">历史</button>
           <button v-if="hasPerm('policy:update')" class="sc-btn edit" @click="router.push('/strategy/edit/' + s.id)">编辑</button>
           <button v-if="hasPerm('policy:delete')" class="sc-btn del" @click="remove(s)">删除</button>
         </div>
       </div>
     </div>
     
+    <!-- 执行历史弹窗 -->
+    <ElDialog v-model="historyVisible" :title="'执行历史 — ' + historyPolicyName" width="700px" top="5vh">
+      <div v-if="historyLoading" class="loading-state">加载中...</div>
+      <div v-else-if="historyData">
+        <div class="history-summary">近7天共触发 <strong>{{ historyData.totalTriggers }}</strong> 次</div>
+        <div class="history-list" v-if="historyData.records?.length">
+          <div v-for="(r, i) in historyData.records.slice(0, 30)" :key="i" class="history-item">
+            <span class="hi-time">{{ r.createTime }}</span>
+            <span class="hi-device">{{ r.deviceId }}</span>
+            <span class="hi-action">{{ r.actionTaken }}</span>
+          </div>
+        </div>
+        <div v-else class="empty-hint">暂无执行记录 — 可能还没有遥测数据触发该策略，或策略条件尚未满足</div>
+      </div>
+    </ElDialog>
+
     <!-- 分页 -->
     <div class="pagination-wrapper" v-if="total > 0">
       <ElPagination
@@ -255,6 +287,8 @@ async function remove(s) {
   padding: 5px 12px;
   border-radius: 5px; font-size: 12px; cursor: pointer; transition: all 0.2s;
 }
+.sc-btn.hist { background: rgba(0,120,80,0.15); border: 1px solid rgba(0,180,120,0.25); color: rgba(140,220,180,0.8); }
+.sc-btn.hist:hover { background: rgba(0,180,120,0.2); color: #4caf50; }
 .sc-btn.edit { background: rgba(0,80,140,0.2); border: 1px solid rgba(0,120,200,0.3); color: rgba(140,200,230,0.9); }
 .sc-btn.edit:hover { background: rgba(0,120,200,0.2); color: #4dd0e1; }
 .sc-btn.del { background: rgba(180,30,30,0.1); border: 1px solid rgba(200,60,60,0.25); color: rgba(220,100,100,0.8); }
@@ -265,4 +299,17 @@ async function remove(s) {
   display: flex;
   justify-content: flex-end;
 }
+
+.history-summary { font-size: 14px; color: rgba(200,220,240,0.9); margin-bottom: 12px; }
+.history-summary strong { color: #4dd0e1; font-size: 18px; }
+.history-list { display: flex; flex-direction: column; gap: 4px; max-height: 400px; overflow-y: auto; }
+.history-item {
+  display: flex; gap: 16px; padding: 6px 10px;
+  background: rgba(0,20,50,0.4); border-radius: 4px;
+  font-size: 12px;
+}
+.hi-time { color: rgba(140,190,220,0.6); min-width: 140px; }
+.hi-device { color: #4dd0e1; min-width: 80px; }
+.hi-action { color: rgba(200,220,240,0.8); }
+.empty-hint { text-align: center; padding: 24px; color: rgba(140,190,220,0.4); }
 </style>

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchStrategyGroups, createStrategy, fetchStrategyDetail, updateStrategy } from '../api/strategy.js'
+import { fetchStrategyGroups, createStrategy, fetchStrategyDetail, updateStrategy, testStrategy } from '../api/strategy.js'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
@@ -10,6 +10,24 @@ const groups = ref([])
 const saving = ref(false)
 const saveSuccess = ref(false)
 const isEdit = ref(false)
+const testVisible = ref(false)
+const testLoading = ref(false)
+const testResult = ref(null)
+const testInput = reactive({
+  illuminance: 20, temperature: 26, humidity: 60,
+  pir: 0, trafficFlow: 5, currentTime: '23:00'
+})
+
+async function runTest() {
+  testLoading.value = true
+  testResult.value = null
+  try {
+    const res = await testStrategy(testInput)
+    testResult.value = res?.data || null
+  } catch { testResult.value = { matched: false, matchedPolicy: null } }
+  testLoading.value = false
+}
+
 const showAddMenu = ref(false)
 
 // 可添加的条件类型（key 必须与 DecisionEngine evaluateSingle 匹配）
@@ -337,8 +355,171 @@ async function saveStrategy() {
       </div>
     </div>
 
+    <div class="form-content">
+      <!-- ① 基础信息 -->
+      <div class="form-section">
+        <div class="section-title">
+          <span class="section-icon info">ℹ</span>
+          基础信息
+        </div>
+        <div class="field-grid">
+          <div class="field-group">
+            <label>策略名称</label>
+            <input v-model="form.name" class="field-input" placeholder="例：深夜节能模式" />
+          </div>
+          <div class="field-group">
+            <label>策略组</label>
+            <select v-model="form.group" class="field-select">
+              <option v-for="g in groups" :key="g">{{ g }}</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>生效开始时间</label>
+            <div class="time-input-wrap">
+              <input v-model="form.startTime" class="field-input" type="time" />
+            </div>
+          </div>
+          <div class="field-group">
+            <label>生效结束时间</label>
+            <div class="time-input-wrap">
+              <input v-model="form.endTime" class="field-input" type="time" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ② 触发条件 -->
+      <div class="form-section">
+        <div class="section-title">
+          <span class="section-icon radio">((·))</span>
+          触发条件 <span class="logic-tag">AND 逻辑</span>
+        </div>
+
+        <!-- 环境光照度 -->
+        <div class="condition-card" :class="{ active: form.conditions.illuminance.enabled }">
+          <label class="condition-check">
+            <input type="checkbox" v-model="form.conditions.illuminance.enabled" class="real-checkbox" />
+            <span class="checkbox-custom"></span>
+          </label>
+          <div class="condition-body">
+            <div class="condition-name">环境光照度低于阈值</div>
+            <div class="condition-desc">当光传感器读数跌至阈值下了设定触发。</div>
+          </div>
+          <div class="condition-params" v-if="form.conditions.illuminance.enabled">
+            <div class="param-field">
+              <input v-model.number="form.conditions.illuminance.threshold" class="param-input" type="number" min="0" />
+              <span class="param-unit">Lux</span>
+            </div>
+            <span class="param-sep">同差：</span>
+            <div class="param-field">
+              <input v-model.number="form.conditions.illuminance.tolerance" class="param-input" type="number" min="0" />
+              <span class="param-unit">Lux</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 人车流量阈值 -->
+        <div class="condition-card" :class="{ active: form.conditions.traffic.enabled }">
+          <label class="condition-check">
+            <input type="checkbox" v-model="form.conditions.traffic.enabled" class="real-checkbox" />
+            <span class="checkbox-custom"></span>
+          </label>
+          <div class="condition-body">
+            <div class="condition-name">人车流量阈值（雷达感知）</div>
+            <div class="condition-desc">区域内5分钟平均流量低于设定值。</div>
+          </div>
+          <div class="condition-params" v-if="form.conditions.traffic.enabled">
+            <div class="param-field">
+              <input v-model.number="form.conditions.traffic.threshold" class="param-input" type="number" min="0" />
+              <span class="param-unit">次/5min</span>
+            </div>
+          </div>
+        </div>
+
+        <button class="add-condition-btn">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          添加更多条件
+        </button>
+      </div>
+
+      <!-- ③ 动作执行 -->
+      <div class="form-section">
+        <div class="section-title">
+          <span class="section-icon action">⚙</span>
+          动作执行
+        </div>
+        <div class="action-body">
+          <div class="action-left">
+            <div class="action-label-row">
+              <span>目标亮度调节</span>
+              <span class="brightness-pct">{{ form.actions.brightness }}%</span>
+            </div>
+            <input
+              type="range" min="0" max="100" step="5"
+              v-model="form.actions.brightness"
+              class="brightness-slider"
+            />
+            <div class="slider-marks">
+              <span>0%（关闭）</span>
+              <span>50%</span>
+              <span>100%（全亮）</span>
+            </div>
+          </div>
+
+          <div class="action-right">
+            <div class="action-sub-title">附加联动动作</div>
+            <div class="action-checks">
+              <label class="action-check-item">
+                <input type="checkbox" v-model="form.actions.voiceAlert" class="real-checkbox" />
+                <span class="checkbox-custom"></span>
+                <svg class="ac-icon" viewBox="0 0 24 24" fill="none"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" stroke="currentColor" stroke-width="1.5"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                开启语音播报提示（针对违规停车）
+              </label>
+              <label class="action-check-item">
+                <input type="checkbox" v-model="form.actions.nightVision" class="real-checkbox" />
+                <span class="checkbox-custom"></span>
+                <svg class="ac-icon" viewBox="0 0 24 24" fill="none"><rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/></svg>
+                切换监控摄像头至夜视红外模式
+              </label>
+              <label class="action-check-item">
+                <input type="checkbox" v-model="form.actions.generateAlert" class="real-checkbox" />
+                <span class="checkbox-custom"></span>
+                <svg class="ac-icon" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 20h20L12 2z" stroke="currentColor" stroke-width="1.5"/><path d="M12 9v5M12 17v.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                产生异常告警记录
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 模拟测试弹窗 -->
+    <ElDialog v-model="testVisible" title="策略模拟测试" width="500px" top="5vh">
+      <div class="test-form">
+        <div class="test-field"><label>光照强度 (Lux)</label><input v-model.number="testInput.illuminance" type="number" class="field-input" /></div>
+        <div class="test-field"><label>温度 (°C)</label><input v-model.number="testInput.temperature" type="number" class="field-input" /></div>
+        <div class="test-field"><label>湿度 (%)</label><input v-model.number="testInput.humidity" type="number" class="field-input" /></div>
+        <div class="test-field"><label>人体红外 (0/1)</label><input v-model.number="testInput.pir" type="number" min="0" max="1" class="field-input" /></div>
+        <div class="test-field"><label>车流量 (/min)</label><input v-model.number="testInput.trafficFlow" type="number" class="field-input" /></div>
+        <button class="search-btn" @click="runTest" :disabled="testLoading">{{ testLoading ? '测试中...' : '开始测试' }}</button>
+      </div>
+      <div v-if="testResult" class="test-result">
+        <div v-if="testResult.matched" class="test-match">
+          匹配成功！命中策略 <strong>{{ testResult.matchedPolicy }}</strong>，执行 {{ testResult.matchedAction }}
+        </div>
+        <div v-else class="test-nomatch">未匹配任何策略 — 当前条件不满足任何已启用策略</div>
+        <div v-if="testResult.allResults?.length" class="test-all">
+          <div v-for="r in testResult.allResults" :key="r.policyId" class="test-policy-row" :class="{ hit: r.hit }">
+            <span>{{ r.hit ? '' : '' }} {{ r.policyName }}</span>
+            <span class="test-tag">{{ r.hit ? '命中' : '未命中' }}</span>
+          </div>
+        </div>
+      </div>
+    </ElDialog>
+
     <!-- 保存按钮 -->
     <div class="footer-save">
+      <button class="test-mode-btn" @click="testVisible = true">模拟测试</button>
       <button class="save-btn" :class="{ success: saveSuccess }" @click="saveStrategy" :disabled="saving">
         <svg v-if="!saveSuccess" viewBox="0 0 24 24" fill="none"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" stroke="currentColor" stroke-width="1.5"/><polyline points="17 21 17 13 7 13 7 21" stroke="currentColor" stroke-width="1.5"/><polyline points="7 3 7 8 15 8" stroke="currentColor" stroke-width="1.5"/></svg>
         <svg v-else viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>

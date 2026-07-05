@@ -133,3 +133,13 @@ export function updateLuxThreshold(data) {
     'PUT /api/policies/lux-threshold'
   )
 }
+
+// ── 策略执行历史 GET /api/policies/{id}/history ─────────────────────────
+export function fetchStrategyHistory(id, days = 7) {
+  return request.get(`/api/policies/${id}/history`, { params: { days } })
+}
+
+// ── 策略模拟测试 POST /api/policies/test ─────────────────────────────────
+export function testStrategy(data) {
+  return request.post('/api/policies/test', data)
+}
