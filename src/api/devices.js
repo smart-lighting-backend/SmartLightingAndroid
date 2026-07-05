@@ -156,6 +156,11 @@ export function fetchDeviceDetail(deviceId) {
   )
 }
 
+// ── 融合感知面板 ─────────────────────────────────────────────────
+export function fetchDevicePerception(deviceId) {
+  return request.get(`/api/devices/${deviceId}/perception`)
+}
+
 // ── 新增设备 POST /api/devices ────────────────────────────────────────────
 /**
  * @param {{

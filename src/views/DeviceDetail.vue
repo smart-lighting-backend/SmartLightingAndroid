@@ -4,6 +4,7 @@ import { ElButton, ElCard, ElTag, ElRadioGroup, ElRadioButton, ElRow, ElCol, ElS
 import { ArrowLeft, Lightning, Sunny, Moon, Refresh, Warning } from '@element-plus/icons-vue';
 import { fetchDeviceHealth } from '../api/devices.js';
 import * as echarts from 'echarts';
+import PerceptionPanel from '../components/PerceptionPanel.vue';
 import { fetchDeviceDetail } from '../api/devices.js';
 import { fetchLatestTelemetry, fetchTelemetryHistory } from '../api/telemetry.js';
 import { sendControlCommand, getControlHistory } from '../api/control.js';
