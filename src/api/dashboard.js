@@ -73,3 +73,23 @@ export function fetchMonthlyEnergy(year) {
 export function fetchDistrictEnergy(year) {
   return request.get('/api/dashboard/energy/district', { params: { year } })
 }
+
+export function fetchEdgeStatus() {
+  return safeCall(
+    () => request.get('/api/dashboard/edge-status'),
+    { totalDecisions: 0, hitCount: 0, lastSimulatedAt: null, enabled: true },
+    'GET /api/dashboard/edge-status'
+  )
+}
+
+export function triggerEdgeSimulation() {
+  return request.post('/api/dashboard/edge/trigger', null, { timeout: 30000 })
+}
+
+export function fetchEdgeRecent() {
+  return safeCall(
+    () => request.get('/api/dashboard/edge/recent'),
+    [],
+    'GET /api/dashboard/edge/recent'
+  )
+}

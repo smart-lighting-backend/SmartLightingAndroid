@@ -140,6 +140,56 @@ export function fetchStrategyHistory(id, days = 7) {
 }
 
 // ── 策略模拟测试 POST /api/policies/test ─────────────────────────────────
+
+/** 本地条件评估（镜像 DecisionEngine.evaluateSingle 逻辑） */
+function evalCondition(key, value, sensor) {
+  if (value == null) return false
+  switch (key) {
+    case 'lux_lt': return sensor.illuminance != null && sensor.illuminance < Number(value)
+    case 'lux_gt': return sensor.illuminance != null && sensor.illuminance > Number(value)
+    case 'temp_lt': return sensor.temperature != null && sensor.temperature < Number(value)
+    case 'temp_gt': return sensor.temperature != null && sensor.temperature > Number(value)
+    case 'humidity_lt': return sensor.humidity != null && sensor.humidity < Number(value)
+    case 'humidity_gt': return sensor.humidity != null && sensor.humidity > Number(value)
+    case 'pir': return sensor.pir != null && sensor.pir === Number(value)
+    case 'traffic_gt': return sensor.trafficFlow != null && sensor.trafficFlow > Number(value)
+    case 'traffic_lt': return sensor.trafficFlow != null && sensor.trafficFlow < Number(value)
+    default: return true // 跳过 group/startTime/extraActions 等元数据
+  }
+}
+
+/** 本地策略评估（镜像 DecisionEngine.matchesCondition 逻辑） */
+function localMatches(conditionsJson, sensor) {
+  if (!conditionsJson) return false
+  let conds
+  try { conds = JSON.parse(conditionsJson) } catch { return false }
+  for (const [key, value] of Object.entries(conds)) {
+    if (!evalCondition(key, value, sensor)) return false
+  }
+  return true
+}
+
 export function testStrategy(data) {
-  return request.post('/api/policies/test', data)
+  return safeCall(
+    () => request.post('/api/policies/test', data),
+    (() => {
+      const sensor = {
+        illuminance: data.illuminance,
+        temperature: data.temperature,
+        humidity: data.humidity,
+        pir: data.pir,
+        trafficFlow: data.trafficFlow,
+      }
+      // 评估当前编辑的策略
+      const matched = localMatches(data.conditions, sensor)
+      const result = {
+        matched,
+        matchedPolicy: matched ? (data.name || '(当前编辑策略)') : null,
+        matchedAction: matched ? data.action : null,
+        allResults: MOCK_POLICIES.map(p => ({ policyId: p.id, policyName: p.name, hit: false, priority: 100 })),
+      }
+      return result
+    })(),
+    'POST /api/policies/test'
+  )
 }

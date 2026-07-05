@@ -6,7 +6,7 @@
  * - 登录后从 /me 刷新 permissions 和 menus
  */
 import { createRouter, createWebHistory } from 'vue-router'
-import { getToken, clearAuth, saveAuth, savePermissions, saveMenus, fetchCurrentUser, getUserInfo, refreshPermissionsAndMenus } from '../api/auth.js'
+import { getToken, clearAuth, saveAuth, savePermissions, saveMenus, fetchCurrentUser, getUserInfo, getPermissions } from '../api/auth.js'
 
 const routes = [
   {
@@ -29,67 +29,67 @@ const routes = [
         path: 'dashboard',
         name: 'Dashboard',
         component: () => import('../views/Dashboard.vue'),
-        meta: { title: '数字孪生' },
+        meta: { title: '数字孪生', permission: 'dashboard:read' },
       },
       {
         path: 'devices',
         name: 'Devices',
         component: () => import('../views/Devices.vue'),
-        meta: { title: '设备管理' },
+        meta: { title: '设备管理', permission: 'device:read' },
       },
       {
         path: 'devices/:id',
         name: 'DeviceDetail',
         component: () => import('../views/DeviceDetail.vue'),
-        meta: { title: '设备详情' },
+        meta: { title: '设备详情', permission: 'device:read' },
       },
       {
         path: 'analytics',
         name: 'Analytics',
         component: () => import('../views/Analytics.vue'),
-        meta: { title: '数据报表' },
+        meta: { title: '数据报表', permission: 'telemetry:read' },
       },
       {
         path: 'warning',
         name: 'Warning',
         component: () => import('../views/Warning.vue'),
-        meta: { title: '告警中心' },
+        meta: { title: '告警中心', permission: 'alarm:read' },
       },
       {
         path: 'strategy',
         name: 'Strategy',
         component: () => import('../views/Strategy.vue'),
-        meta: { title: '策略配置' },
+        meta: { title: '策略配置', permission: 'policy:read' },
       },
       {
         path: 'strategy/create',
         name: 'StrategyCreate',
         component: () => import('../views/StrategyCreate.vue'),
-        meta: { title: '新建策略' },
+        meta: { title: '新建策略', permission: 'policy:create' },
       },
       {
         path: 'strategy/edit/:id',
         name: 'StrategyEdit',
         component: () => import('../views/StrategyCreate.vue'),
-        meta: { title: '编辑策略' },
+        meta: { title: '编辑策略', permission: 'policy:update' },
       },
       {
         path: 'assistant',
         name: 'AIAssistant',
         component: () => import('../views/AIAssistant.vue'),
-        meta: { title: '智能助手' },
+        meta: { title: '智能助手', permission: 'assistant:read' },
       },
       {
         path: 'logs',
         name: 'SystemLog',
         component: () => import('../views/SystemLog.vue'),
-        meta: { title: '系统日志' },
+        meta: { title: '系统日志', permission: 'audit:read' },
       },
       {
         path: 'users',
         name: 'UserManagement',
         component: () => import('../views/UserManagement.vue'),
-        meta: { title: '用户管理' },
+        meta: { title: '用户管理', permission: 'user:read' },
       },
       // ── 系统管理子页面（仅超级管理员可访问）────────────────────────────────
       {
@@ -133,13 +133,13 @@ const routes = [
         path: 'energy',
         name: 'EnergyTrend',
         component: () => import('../views/EnergyTrend.vue'),
-        meta: { title: '能耗走势' },
+        meta: { title: '能耗走势', permission: 'energy:read' },
       },
       {
         path: 'events',
         name: 'EventCenter',
         component: () => import('../views/EventCenter.vue'),
-        meta: { title: '事件中心' },
+        meta: { title: '事件中心', permission: 'events:read' },
       },
     ],
   },
@@ -185,6 +185,15 @@ router.beforeEach(async (to, from) => {
     } catch {
       clearAuth()
       return { path: '/login', query: { redirect: to.fullPath } }
+    }
+  }
+
+  // 权限检查：路由声明了 permission 但用户没有对应权限 → 403
+  if (to.meta.permission) {
+    const perms = getPermissions()
+    if (!perms || !perms.includes(to.meta.permission)) {
+      console.warn('[Router] 缺少权限: ' + to.meta.permission + '，已重定向')
+      return { path: '/dashboard' }
     }
   }
 

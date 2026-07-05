@@ -1,13 +1,16 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { fetchDashboardStats, fetchEnergyTrend, fetchDistrictData, triggerEnergyCalc, genTestData } from '../api/dashboard.js'
+import { fetchDashboardStats, fetchEnergyTrend, fetchDistrictData, fetchEdgeStatus, triggerEdgeSimulation, fetchEdgeRecent, triggerEnergyCalc, genTestData } from '../api/dashboard.js'
 import { useChartScale } from '../composables/useChartScale.js'
 import * as echarts from 'echarts'
 
 const router = useRouter()
 const { scaleOption, onScaleChange } = useChartScale()
 const stats = ref({})
+const edgeStatus = ref({})
+const edgeRecent = ref([])
+const edgeLoading = ref(false)
 const districts = ref([])
 const chartRef = ref(null)
 let chart = null
@@ -42,18 +45,42 @@ async function handleGenData() {
   } finally {
     genLoading.value = false
   }
+}  // ← handleGenData 结束
+
+// ── 边缘AI决策 ──
+async function refreshEdgeStatus() {
+  try {
+    const [s, r] = await Promise.all([fetchEdgeStatus(), fetchEdgeRecent()])
+    edgeStatus.value = s.data || {}
+    edgeRecent.value = r.data || []
+  } catch {}
+}
+async function handleTriggerEdge() {
+  edgeLoading.value = true
+  try {
+    const res = await triggerEdgeSimulation()
+    edgeStatus.value = res.data || {}
+    await refreshEdgeStatus()
+  } catch (e) {
+    alert('边缘模拟失败: ' + (e.response?.data?.msg || e.message))
+  } finally {
+    edgeLoading.value = false
+  }
 }
 
 onMounted(async () => {
   try {
-    const [s, t, d] = await Promise.all([
+    const [s, t, d, e] = await Promise.all([
       fetchDashboardStats(),
       fetchEnergyTrend(),
       fetchDistrictData(),
+      fetchEdgeStatus(),
     ]);
 
     stats.value    = s.data || {};
     districts.value = d.data || [];
+    edgeStatus.value = e.data || {};
+    refreshEdgeStatus();
     let trendData = t.data || {};
 
     if (!trendData.labels || !trendData.current || trendData.current.length === 0 || trendData.current.every(v => v === 0)) {
@@ -149,6 +176,36 @@ function initChart(data) {
           <div class="stat-hint warn-hint" @click="$router.push('/warning')" style="cursor:pointer">点击查看 →</div>
         </div>
       </div>
+      <div class="stat-card edge">
+        <div class="stat-icon edge-ai">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="3" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="12" r="1.5" fill="currentColor"/><circle cx="15" cy="12" r="1.5" fill="currentColor"/><path d="M9 17h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <div class="stat-body">
+          <div class="stat-value">{{ edgeStatus.totalDecisions || 0 }}</div>
+          <div class="stat-label">
+            边缘AI决策
+            <button class="edge-trigger-btn" :disabled="edgeLoading" @click="handleTriggerEdge" :title="'手动触发一次边缘决策模拟'">
+              {{ edgeLoading ? '...' : '▶' }}
+            </button>
+          </div>
+          <div class="stat-hint" :class="edgeStatus.hitCount > 0 ? 'good' : ''">
+            {{ edgeStatus.hitCount > 0 ? '命中 ' + edgeStatus.hitCount + ' 次' : '模拟运行中' }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 边缘决策最近记录 -->
+    <div class="edge-recent" v-if="edgeRecent.length">
+      <div class="card-title" style="margin-bottom:8px">边缘决策最近记录</div>
+      <div class="edge-log-list">
+        <div v-for="(r, i) in edgeRecent.slice(0, 5)" :key="i" class="edge-log-item">
+          <span class="el-time">{{ r.createTime ? r.createTime.replace('T',' ').slice(5,16) : '--' }}</span>
+          <span class="el-device">{{ r.deviceId }}</span>
+          <span :class="r.matchedPolicy ? 'el-match' : 'el-nomatch'">{{ r.matchedPolicy || '未命中' }}</span>
+          <span class="el-action">{{ r.actionTaken || '—' }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- 中部：能耗图 + 分区数据 -->
@@ -208,7 +265,7 @@ function initChart(data) {
 .dashboard-page { padding: 24px 28px; }
 
 /* Stats */
-.stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 16px; }
+.stats-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 14px; margin-bottom: 16px; }
 .stat-card {
   background: rgba(8,20,45,0.8);
   border: 1px solid rgba(0,120,200,0.15);
@@ -283,5 +340,28 @@ function initChart(data) {
 .district-progress { height: 3px; background: rgba(0,80,140,0.3); border-radius: 2px; overflow: hidden; }
 .prog-fill { height: 100%; background: linear-gradient(90deg, #4dd0e1, #4caf50); border-radius: 2px; transition: width 0.8s ease; }
 
+/* 边缘AI决策 */
+.edge-trigger-btn {
+  display: inline-block; margin-left: 6px; width: 20px; height: 20px;
+  background: rgba(0,200,180,0.15); border: 1px solid rgba(0,200,180,0.3);
+  border-radius: 50%; color: rgba(150,240,230,0.9); font-size: 9px;
+  cursor: pointer; transition: all 0.2s; vertical-align: middle;
+}
+.edge-trigger-btn:hover:not(:disabled) { background: rgba(0,200,180,0.3); }
+.edge-trigger-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.edge-recent {
+  background: rgba(8,20,45,0.8); border: 1px solid rgba(0,120,200,0.15);
+  border-radius: 10px; padding: 14px 18px; margin-bottom: 16px;
+}
+.edge-log-list { display: flex; flex-direction: column; gap: 4px; }
+.edge-log-item {
+  display: flex; align-items: center; gap: 10px; padding: 5px 8px;
+  background: rgba(0,30,70,0.3); border-radius: 4px; font-size: 12px;
+}
+.el-time { color: rgba(140,190,220,0.5); font-family: monospace; min-width: 60px; }
+.el-device { color: rgba(140,190,220,0.7); font-weight: 600; min-width: 60px; }
+.el-match { color: #4caf82; flex: 1; }
+.el-nomatch { color: rgba(140,190,220,0.35); flex: 1; }
+.el-action { color: rgba(200,220,240,0.6); font-family: monospace; }
 
 </style>

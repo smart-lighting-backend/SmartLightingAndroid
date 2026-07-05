@@ -771,6 +771,9 @@ onBeforeUnmount(() => {
         </div>
       </ElCard>
 
+      <!-- 融合感知面板 -->
+      <PerceptionPanel :deviceId="deviceId" />
+
       <div class="section-title">
         <h3>实时遥测数据</h3>
         <span class="update-time">

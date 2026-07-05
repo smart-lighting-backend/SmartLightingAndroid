@@ -18,11 +18,41 @@ const testInput = reactive({
   pir: 0, trafficFlow: 5, currentTime: '23:00'
 })
 
+function buildCurrentConditions() {
+  const obj = { group: form.group, startTime: form.startTime, endTime: form.endTime }
+  conditionItems.value.filter(c => c.enabled).forEach(c => {
+    obj[c.key] = c.isBoolean ? 1 : c.value
+  })
+  obj.extraActions = {
+    voiceAlert: form.actions.voiceAlert,
+    nightVision: form.actions.nightVision,
+    generateAlert: form.actions.generateAlert,
+  }
+  return JSON.stringify(obj)
+}
+
+function buildCurrentAction() {
+  if (form.actions.brightness === 0) return 'OFF'
+  if (form.actions.brightness === 100) return 'ON'
+  return 'DIMMING(' + form.actions.brightness + ')'
+}
+
 async function runTest() {
   testLoading.value = true
   testResult.value = null
   try {
-    const res = await testStrategy(testInput)
+    const payload = {
+      illuminance: testInput.illuminance,
+      temperature: testInput.temperature,
+      humidity: testInput.humidity,
+      pir: testInput.pir,
+      trafficFlow: testInput.trafficFlow,
+      currentTime: testInput.currentTime,
+      conditions: buildCurrentConditions(),
+      action: buildCurrentAction(),
+      name: form.name || '(当前编辑策略)',
+    }
+    const res = await testStrategy(payload)
     testResult.value = res?.data || null
   } catch { testResult.value = { matched: false, matchedPolicy: null } }
   testLoading.value = false
