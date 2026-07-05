@@ -25,12 +25,13 @@ const FALLBACK_MENUS = [
   { id: 3, name: '数据报表', path: '/analytics', icon: 'chart', sort: 3, children: [] },
   { id: 4, name: '能耗走势', path: '/energy', icon: 'energy', sort: 4, children: [] },
   { id: 5, name: '告警中心', path: '/warning', icon: 'warning', sort: 5, children: [] },
-  { id: 6, name: '策略配置', path: '/strategy', icon: 'strategy', sort: 6, children: [] },
-  { id: 7, name: '智能助手', path: '/assistant', icon: 'robot', sort: 7, children: [] },
-  { id: 8, name: '系统日志', path: '/logs', icon: 'history', sort: 8, children: [] },
-  { id: 9, name: '用户管理', path: '/users', icon: 'user', sort: 9, children: [] },
+  { id: 13, name: '事件中心', path: '/events', icon: 'eye', sort: 6, children: [] },
+  { id: 6, name: '策略配置', path: '/strategy', icon: 'strategy', sort: 7, children: [] },
+  { id: 7, name: '智能助手', path: '/assistant', icon: 'robot', sort: 8, children: [] },
+  { id: 8, name: '系统日志', path: '/logs', icon: 'history', sort: 9, children: [] },
+  { id: 9, name: '用户管理', path: '/users', icon: 'user', sort: 10, children: [] },
   {
-    id: 10, name: '系统管理', path: '/system', icon: 'setting', sort: 10, children: [
+    id: 10, name: '系统管理', path: '/system', icon: 'setting', sort: 11, children: [
       { id: 11, name: '权限管理', path: '/system/permission', icon: '', sort: 1, children: [] },
       { id: 12, name: '菜单管理', path: '/system/menu', icon: '', sort: 2, children: [] }
     ]

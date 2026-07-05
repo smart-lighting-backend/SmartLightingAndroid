@@ -135,6 +135,12 @@ const routes = [
         component: () => import('../views/EnergyTrend.vue'),
         meta: { title: '能耗走势' },
       },
+      {
+        path: 'events',
+        name: 'EventCenter',
+        component: () => import('../views/EventCenter.vue'),
+        meta: { title: '事件中心' },
+      },
     ],
   },
   {
