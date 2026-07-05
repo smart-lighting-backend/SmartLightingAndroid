@@ -187,6 +187,10 @@ function autoExpandMenus() {
   }
   
   menus.value.forEach(checkItem)
+  // 保留用户手动展开的菜单，避免侧边栏切换路由后折叠
+  for (const id of expandedIds.value) {
+    autoExpand.add(id)
+  }
   expandedIds.value = autoExpand
 }
 

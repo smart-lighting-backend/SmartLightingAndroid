@@ -2,11 +2,11 @@
 import { ref, computed, onMounted, nextTick, inject } from 'vue'
 import {
   ElButton, ElTable, ElTableColumn, ElTag, ElDialog, ElForm, ElFormItem, ElInput,
-  ElSelect, ElOption, ElSwitch, ElMessage, ElMessageBox, ElTree, ElCard,
-  ElPopconfirm, ElEmpty, ElTooltip
+  ElSelect, ElOption, ElMessage, ElTree, ElCard,
+  ElEmpty, ElTooltip
 } from 'element-plus'
-import { Plus, Edit, Delete, Search, Refresh, FolderOpened } from '@element-plus/icons-vue'
-import { fetchMenuTree, fetchMenuList, createMenu, updateMenu, deleteMenu, fetchVisibleMenus } from '../api/menu.js'
+import { Edit, Search, Refresh, FolderOpened } from '@element-plus/icons-vue'
+import { fetchMenuTree, fetchMenuList, updateMenu, fetchVisibleMenus } from '../api/menu.js'
 import { saveMenus } from '../api/auth.js'
 import { useUserInfo } from '../composables/useUserInfo.js'
 
@@ -18,7 +18,6 @@ const loading = ref(false)
 const searchText = ref('')
 
 const dialogVisible = ref(false)
-const dialogType = ref('add')
 const formRef = ref(null)
 const formData = ref({
   id: null, parentId: null, name: '',
@@ -111,37 +110,12 @@ const filteredList = computed(() => {
 
 const defaultProps = { children: 'children', label: 'name' }
 
-// ─── 新增 / 编辑 ───────────────────────────
-const handleAdd = (parent) => {
-  dialogType.value = 'add'
-  editingId.value = null  // 新增模式不限制
-  const parentPath = parent?.path || ''
-  const name = ''
-  formData.value = {
-    id: null,
-    parentId: parent?.id ?? -1,
-    name: '',
-    path: '',
-    component: '',
-    permissionCode: '',
-    icon: '',
-    sort: 0,
-    enabled: true
-  }
-  // 预填父级路径，方便用户参考
-  if (parent) {
-    formData.value.path = parentPath.endsWith('/') ? parentPath : parentPath + '/'
-  }
-  dialogVisible.value = true
-  nextTick(() => formRef.value?.clearValidate())
-}
-
+// ─── 编辑 ───────────────────────────
 const handleEdit = (row) => {
-  dialogType.value = 'edit'
-  editingId.value = row.id  // 排除自身及子孙
+  editingId.value = row.id  // 排除自身及子孙，防止循环引用
   formData.value = {
     id: row.id,
-    parentId: row.parentId ?? -1,  // null → -1（表示无上级）
+    parentId: row.parentId ?? 0,  // 0 表示无上级（顶级菜单）
     name: row.name || '',
     path: row.path || '',
     component: row.component || '',
@@ -159,53 +133,30 @@ const handleSubmit = async () => {
   try {
     await formRef.value.validate()
     const payload = { ...formData.value }
-    // 确保 parentId 发送 null 而不是占位值 -1
-    if (payload.parentId == null || payload.parentId === -1) payload.parentId = null
+    // 将 0（前端哨兵值）转为 null 发送给后端
+    if (payload.parentId === 0) payload.parentId = null
 
-    if (dialogType.value === 'add') {
-      // 新增：自动生成 path
-      if (!payload.path) {
-        const parent = flatOptions.value.find(o => o.id === payload.parentId)
-        const parentPath = parent?.path || ''
-        const code = payload.permissionCode || payload.name
-        const slug = code.toLowerCase().replace(/[^\w-]/g, '-').replace(/-+/g, '-')
-        payload.path = parentPath ? `${parentPath}/${slug}` : `/${slug}`
-      }
-      await createMenu(payload)
-      ElMessage.success('新增菜单成功')
-    } else {
-      // 编辑：沿用原有所有字段，只更新 name 和 parentId
-      const original = menuList.value.find(m => m.id === payload.id)
-      if (original) {
-        payload.path = original.path || ''
-        payload.component = original.component || ''
-        payload.permissionCode = original.permissionCode || ''
-        payload.icon = original.icon || ''
-        payload.sort = original.sort ?? 0
-        payload.enabled = original.enabled !== false
-        // 注意：path 不随 parentId 变化而改变，
-        // 因为 path 对应真实路由（如 /system/permission），
-        // parentId 只控制侧边栏层级位置。
-      }
-      await updateMenu(payload.id, payload)
-      ElMessage.success('修改菜单成功')
+    // 编辑：沿用原有所有字段，只更新 name 和 parentId
+    const original = menuList.value.find(m => m.id === payload.id)
+    if (original) {
+      payload.path = original.path || ''
+      payload.component = original.component || ''
+      payload.permissionCode = original.permissionCode || ''
+      payload.icon = original.icon || ''
+      payload.sort = original.sort ?? 0
+      payload.enabled = original.enabled !== false
+      // 注意：path 不随 parentId 变化而改变，
+      // 因为 path 对应真实路由（如 /system/permission），
+      // parentId 只控制侧边栏层级位置。
     }
+    await updateMenu(payload.id, payload)
+    ElMessage.success('修改菜单成功')
     dialogVisible.value = false
-    loadData()
-    refreshSidebar()
+    await loadData()
+    await refreshSidebar()
   } catch (error) {
-    if (error?.message) ElMessage.error(error.message || '操作失败')
-  }
-}
-
-const handleDelete = async (row) => {
-  try {
-    await deleteMenu(row.id)
-    ElMessage.success(`已删除菜单「${row.name}」`)
-    loadData()
-    refreshSidebar()
-  } catch {
-    ElMessage.error('删除失败')
+    console.error('[Menu] handleSubmit error:', error)
+    ElMessage.error(error?.response?.data?.msg || error?.message || '操作失败，请查看控制台日志')
   }
 }
 
@@ -226,10 +177,11 @@ const refreshSidebar = async () => {
       saveMenus(menus, inLocal)
       // 直接通知 MainLayout 重新加载菜单
       if (reloadSidebarMenus) {
-        reloadSidebarMenus()
+        await reloadSidebarMenus()
       }
     }
-  } catch {
+  } catch (e) {
+    console.warn('[Menu] refreshSidebar error:', e)
     // 静默失败，不影响主流程
   }
 }
@@ -248,11 +200,6 @@ onMounted(() => loadData())
 
     <!-- 操作栏 -->
     <div class="toolbar">
-      <div class="toolbar-left">
-        <ElButton v-if="hasPerm('menu:create')" type="primary" @click="handleAdd(null)">
-          <Plus /> 新增菜单
-        </ElButton>
-      </div>
       <div class="toolbar-right">
         <ElInput
           v-model="searchText"
@@ -304,17 +251,6 @@ onMounted(() => loadData())
                   >
                     <Edit style="width:14px;height:14px" />
                   </ElButton>
-                  <ElPopconfirm
-                    v-if="hasPerm('menu:delete')"
-                    title="确定删除此菜单？子菜单也将一并删除"
-                    @confirm="handleDelete(data)"
-                  >
-                    <template #reference>
-                      <ElButton size="small" text type="danger" @click.stop>
-                        <Delete style="width:14px;height:14px" />
-                      </ElButton>
-                    </template>
-                  </ElPopconfirm>
                 </span>
               </span>
             </template>
@@ -356,20 +292,11 @@ onMounted(() => loadData())
                 </span>
               </template>
             </ElTableColumn>
-            <ElTableColumn label="操作" width="120" fixed="right" align="center">
+            <ElTableColumn label="操作" width="80" fixed="right" align="center">
               <template #default="{ row }">
                 <ElButton v-if="hasPerm('menu:update')" size="small" text type="primary" @click="handleEdit(row)">
                   <Edit /> 编辑
                 </ElButton>
-                <ElPopconfirm
-                  v-if="hasPerm('menu:delete')"
-                  title="确认删除？"
-                  @confirm="handleDelete(row)"
-                >
-                  <template #reference>
-                    <ElButton size="small" text type="danger"><Delete /> 删除</ElButton>
-                  </template>
-                </ElPopconfirm>
               </template>
             </ElTableColumn>
           </ElTable>
@@ -378,23 +305,22 @@ onMounted(() => loadData())
       </ElCard>
     </div>
 
-    <!-- 新增/编辑弹窗 -->
+    <!-- 编辑弹窗 -->
     <ElDialog
       v-model="dialogVisible"
-      :title="dialogType === 'add' ? '新增菜单' : '编辑菜单'"
+      title="编辑菜单"
       width="500px"
       custom-class="dark-dialog"
       :close-on-click-modal="false"
     >
       <ElForm ref="formRef" :model="formData" :rules="rules" label-position="top">
-        <!-- 名称 + 父级（新增时这两项最核心） -->
         <div class="form-row">
           <ElFormItem label="菜单名称" prop="name" style="flex:2">
             <ElInput v-model="formData.name" placeholder="如：用户管理" />
           </ElFormItem>
           <ElFormItem label="上级菜单" prop="parentId" style="flex:1">
             <ElSelect v-model="formData.parentId" placeholder="顶级菜单（无上级）" clearable style="width:100%">
-              <ElOption label="── 顶级菜单（无上级）──" :value="-1" />
+              <ElOption label="── 顶级菜单（无上级）──" :value="0" />
               <ElOption
                 v-for="item in parentOptions"
                 :key="item.id"
@@ -405,22 +331,14 @@ onMounted(() => loadData())
           </ElFormItem>
         </div>
 
-        <!-- 新增模式：提示自动填充 -->
-        <div v-if="dialogType === 'add'" class="auto-hint">
-          路由路径和权限编码将根据菜单名称和上级菜单自动生成。
-        </div>
-
-        <!-- 编辑模式：提示沿用现有数据 -->
-        <div v-if="dialogType === 'edit'" class="auto-hint">
+        <div class="auto-hint">
           路径、权限编码、图标等将沿用现有数据；修改上级菜单后路径会自动调整。
         </div>
       </ElForm>
       <template #footer>
         <div class="dialog-footer">
           <ElButton @click="dialogVisible = false">取消</ElButton>
-          <ElButton type="primary" @click="handleSubmit">
-            {{ dialogType === 'add' ? '立即创建' : '保存修改' }}
-          </ElButton>
+          <ElButton type="primary" @click="handleSubmit">保存修改</ElButton>
         </div>
       </template>
     </ElDialog>
