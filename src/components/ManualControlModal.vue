@@ -78,11 +78,7 @@ function currentDeviceId() {
 }
 
 function closeModal() {
-  if (hasChanges.value) {
-    window.location.reload()
-  } else {
-    closeModal()
-  }
+  emit('close')
 }
 
 async function togglePower() {

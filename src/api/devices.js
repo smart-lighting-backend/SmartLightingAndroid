@@ -249,6 +249,24 @@ export async function fetchDeviceList(params = {}) {
   return res || []
 }
 
+// ── 地图标注：全量设备（精简查询） ─────────────────────────────────────────
+/**
+ * 为地图组件获取全量设备数据，不传筛选条件，pageSize 上调至 10000。
+ * @returns {Promise<Array>} 设备数组
+ */
+export async function fetchAllDevicesForMap() {
+  const mockList = activeMockDevices()
+  const res = await safeCall(
+    () => request.post('/api/devices/list', { pageNum: 1, pageSize: 10000 }),
+    mockList,
+    'POST /api/devices/list (map)'
+  )
+  if (res?.data?.records) return res.data.records
+  if (Array.isArray(res?.data)) return res.data
+  if (Array.isArray(res)) return res
+  return res || []
+}
+
 // ── 设备详情 GET /api/devices/{deviceId} ─────────────────────────────────
 /**
  * @param {string} deviceId  例如 'SL-001'
@@ -284,6 +302,11 @@ export function fetchDevicePerception(deviceId) {
     })(),
     `GET /api/devices/${deviceId}/perception`
   )
+}
+
+// ── 批量新增设备 POST /api/devices/batch ─────────────────────────────────
+export function batchCreateDevices(devices) {
+  return request.post('/api/devices/batch', devices)
 }
 
 // ── 新增设备 POST /api/devices ────────────────────────────────────────────

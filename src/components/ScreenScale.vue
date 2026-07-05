@@ -86,6 +86,7 @@ onBeforeUnmount(() => {
 .screen-scale-content {
   flex: 0 0 auto;
   transform-origin: top center;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 </style>

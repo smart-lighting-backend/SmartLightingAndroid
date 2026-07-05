@@ -2,9 +2,12 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Location, Download, Upload } from '@element-plus/icons-vue'
 import { createDevice, deleteDevice, fetchDeviceList, updateDevice, STATUS_MAP, STATUS_QUERY_MAP } from '../api/devices.js'
 import { useUserInfo } from '../composables/useUserInfo.js'
+import LocationPicker from '../components/LocationPicker.vue'
+import BatchImport from '../components/BatchImport.vue'
+import { exportDevices } from '../utils/excelTemplate.js'
 
 const router = useRouter()
 const { hasPerm } = useUserInfo()
@@ -27,27 +30,61 @@ const createStatusOptions = [
   { label: '停用', value: 0 },
 ]
 const createForm = ref(buildCreateForm())
+const locationPickerVisible = ref(false)
+const locationCoords = ref({ lng: '', lat: '' })
+const batchImportVisible = ref(false)
+const existingDeviceIds = computed(() => devices.value.map(d => d.deviceId))
 
-const createRules = {
-  deviceId: [{ required: true, message: '请输入设备编号', trigger: 'blur' }],
-  status: [{ required: true, message: '请选择设备状态', trigger: 'change' }],
-  healthScore: [
+function handleExport(area) {
+  const list = area
+    ? devices.value.filter(d => d.area === area)
+    : devices.value
+  if (!list.length) { ElMessage.warning('没有可导出的设备'); return }
+  exportDevices(list, area)
+  ElMessage.success(`已导出 ${list.length} 台设备`)
+}
+
+function onBatchImported() {
+  loadDevices()
+}
+
+function makeCoordRule(field, min, max) {
+  return [
     {
       validator: (_rule, value, callback) => {
-        if (value === '' || value === null || value === undefined) {
-          callback()
-          return
-        }
-        const score = Number(value)
-        if (Number.isNaN(score) || score < 0 || score > 100) {
-          callback(new Error('健康分需在 0 到 100 之间'))
+        if (value === '' || value === null || value === undefined) { callback(); return }
+        const v = Number(value)
+        if (Number.isNaN(v) || v < min || v > max) {
+          callback(new Error(`${field}需在 ${min}°~${max}° 之间（中国境内），当前项目设备不允许放置在境外`))
           return
         }
         callback()
       },
-      trigger: 'change',
+      trigger: 'blur',
     },
-  ],
+  ]
+}
+
+const createRules = {
+  deviceId: [{ required: true, message: '请输入设备编号', trigger: 'blur' }],
+  status: [{ required: true, message: '请选择设备状态', trigger: 'change' }],
+  longitude: makeCoordRule('经度', 73.5, 135),
+  latitude: makeCoordRule('纬度', 18, 54),
+}
+
+function openLocationPicker() {
+  locationCoords.value = {
+    lng: createForm.value.longitude || '',
+    lat: createForm.value.latitude || '',
+  }
+  locationPickerVisible.value = true
+}
+
+function onLocationPicked(coords) {
+  createForm.value.longitude = coords.lng
+  createForm.value.latitude = coords.lat
+  createFormRef.value?.validateField('longitude')
+  createFormRef.value?.validateField('latitude')
 }
 
 function buildCreateForm() {
@@ -55,7 +92,8 @@ function buildCreateForm() {
     deviceId: '',
     name: '',
     area: '',
-    location: '',
+    longitude: '',
+    latitude: '',
     status: 1,
     healthScore: 100,
     topicPrefix: 'streetlight',
@@ -115,11 +153,13 @@ function openCreateDialog() {
 function openEditDialog(device) {
   createDialogMode.value = 'edit'
   editingDeviceId.value = device.deviceId
+  const locParts = (device.location || '').split(',').map(s => s.trim())
   createForm.value = {
     deviceId: device.deviceId || '',
     name: device.name || '',
     area: device.area || '',
-    location: device.location || '',
+    longitude: locParts[0] || '',
+    latitude: locParts[1] || '',
     status: displayStatus(device) ?? 1,
     healthScore: device.healthScore ?? 100,
     topicPrefix: device.topicPrefix || 'streetlight',
@@ -143,11 +183,14 @@ function normalizeOptionalText(value) {
 function buildCreatePayload() {
   const formStatus = Number(createForm.value.status ?? 1)
   const enabled = formStatus === 0 ? false : createForm.value.enabled !== false
+  const lng = createForm.value.longitude?.toString().trim()
+  const lat = createForm.value.latitude?.toString().trim()
+  const location = (lng && lat) ? `${lng},${lat}` : undefined
   return {
     deviceId: createForm.value.deviceId.trim(),
     name: normalizeOptionalText(createForm.value.name),
     area: normalizeOptionalText(createForm.value.area),
-    location: normalizeOptionalText(createForm.value.location),
+    location,
     status: enabled ? formStatus : 0,
     healthScore: createForm.value.healthScore === '' || createForm.value.healthScore === null
       ? undefined
@@ -287,6 +330,24 @@ function formatTime(iso) {
           <Plus class="create-device-icon" />
           新增设备
         </button>
+        <button v-if="hasPerm('device:create')" class="header-btn import-btn" @click="batchImportVisible = true">
+          <Upload class="header-btn-icon" />
+          批量导入
+        </button>
+        <el-dropdown v-if="hasPerm('device:read')" @command="handleExport">
+          <button class="header-btn export-btn">
+            <Download class="header-btn-icon" />
+            导出
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="">全部设备</el-dropdown-item>
+              <el-dropdown-item v-for="area in [...new Set(devices.map(d=>d.area).filter(Boolean))]" :key="area" :command="area">
+                {{ area }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <div class="search-wrap">
           <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           <input v-model="search" class="search-input" placeholder="搜索设备ID、名称或区域" />
@@ -420,27 +481,28 @@ function formatTime(iso) {
         <ElFormItem label="所属区域" prop="area">
           <ElInput v-model.trim="createForm.area" placeholder="如 A区" />
         </ElFormItem>
-        <ElFormItem label="安装位置" prop="location">
-          <ElInput v-model.trim="createForm.location" placeholder="如 106.5622,29.5621" />
+        <ElFormItem label="经度" prop="longitude">
+          <div style="display:flex;gap:8px;align-items:center">
+            <ElInput v-model.trim="createForm.longitude" placeholder="如 106.5622" style="flex:1" />
+            <span style="color:rgba(140,190,220,0.4);font-size:12px;white-space:nowrap">°E</span>
+          </div>
+        </ElFormItem>
+        <ElFormItem label="纬度" prop="latitude">
+          <div style="display:flex;gap:8px;align-items:center">
+            <ElInput v-model.trim="createForm.latitude" placeholder="如 29.5621" style="flex:1" />
+            <span style="color:rgba(140,190,220,0.4);font-size:12px;white-space:nowrap">°N</span>
+          </div>
+        </ElFormItem>
+        <ElFormItem label=" ">
+          <button type="button" class="pick-map-btn" @click="openLocationPicker">
+            <Location style="width:14px;height:14px" />
+            地图选点
+          </button>
         </ElFormItem>
         <ElFormItem label="设备状态" prop="status">
           <ElSelect v-model="createForm.status" style="width: 100%">
             <ElOption v-for="option in createStatusOptions" :key="option.value" :label="option.label" :value="option.value" />
           </ElSelect>
-        </ElFormItem>
-        <ElFormItem label="健康分" prop="healthScore">
-          <ElInputNumber
-            v-model="createForm.healthScore"
-            :min="0"
-            :max="100"
-            :precision="2"
-            :step="1"
-            controls-position="right"
-            style="width: 100%"
-          />
-        </ElFormItem>
-        <ElFormItem label="主题前缀" prop="topicPrefix">
-          <ElInput v-model.trim="createForm.topicPrefix" placeholder="streetlight" />
         </ElFormItem>
         <ElFormItem label="启用状态" prop="enabled">
           <ElSwitch v-model="createForm.enabled" active-text="启用" inactive-text="停用" />
@@ -455,6 +517,19 @@ function formatTime(iso) {
         </div>
       </template>
     </ElDialog>
+
+    <LocationPicker
+      v-model:visible="locationPickerVisible"
+      v-model="locationCoords"
+      :devices="devices"
+      @confirm="onLocationPicked"
+    />
+    <BatchImport
+      v-model:visible="batchImportVisible"
+      :existingDeviceIds="existingDeviceIds"
+      :existingDevices="devices"
+      @imported="onBatchImported"
+    />
   </div>
 </template>
 
@@ -592,4 +667,22 @@ function formatTime(iso) {
   background: rgba(8,20,45,0.72);
 }
 .device-dialog-footer { display: flex; justify-content: flex-end; gap: 10px; }
+.pick-map-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 16px;
+  background: rgba(0,120,200,0.2); border: 1px solid rgba(0,150,230,0.35);
+  border-radius: 6px; color: #4dd0e1; font-size: 13px;
+  cursor: pointer; transition: all 0.2s;
+}
+.pick-map-btn:hover { background: rgba(0,150,230,0.3); border-color: rgba(77,208,225,0.5); }
+.header-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 36px; padding: 0 14px; border-radius: 7px;
+  font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+  border: 1px solid rgba(0,120,200,0.25);
+  background: rgba(0,80,160,0.15); color: rgba(180,210,230,0.8);
+}
+.header-btn-icon { width: 14px; height: 14px; flex-shrink: 0; }
+.import-btn:hover { background: rgba(0,120,200,0.22); border-color: rgba(77,208,225,0.4); color: #4dd0e1; }
+.export-btn:hover { background: rgba(0,180,100,0.15); border-color: rgba(76,175,130,0.4); color: #4caf82; }
 </style>
