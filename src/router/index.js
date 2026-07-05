@@ -6,7 +6,7 @@
  * - 登录后从 /me 刷新 permissions 和 menus
  */
 import { createRouter, createWebHistory } from 'vue-router'
-import { getToken, clearAuth, saveAuth, savePermissions, saveMenus, fetchCurrentUser } from '../api/auth.js'
+import { getToken, clearAuth, saveAuth, savePermissions, saveMenus, fetchCurrentUser, getUserInfo, refreshPermissionsAndMenus } from '../api/auth.js'
 
 const routes = [
   {
@@ -91,18 +91,18 @@ const routes = [
         component: () => import('../views/UserManagement.vue'),
         meta: { title: '用户管理' },
       },
-      // ── 系统管理子页面 ────────────────────────────────────────────────────
+      // ── 系统管理子页面（仅超级管理员可访问）────────────────────────────────
       {
         path: 'system/permission',
         name: 'PermissionManagement',
         component: () => import('../views/PermissionManagement.vue'),
-        meta: { title: '权限管理' },
+        meta: { title: '权限管理', adminOnly: true },
       },
       {
         path: 'system/menu',
         name: 'MenuManagement',
         component: () => import('../views/MenuManagement.vue'),
-        meta: { title: '菜单管理' },
+        meta: { title: '菜单管理', adminOnly: true },
       },
       // ── 队友新增页面路由 ────────────────────────────────────────────────────
       {
@@ -155,6 +155,9 @@ const router = createRouter({
 })
 
 // ─── 导航守卫 ─────────────────────────────────────────────────────────────
+let lastRefreshTime = 0
+const REFRESH_INTERVAL = 30 * 1000 // 30 秒刷新一次权限
+
 router.beforeEach(async (to, from) => {
   const token = getToken()
 
@@ -167,8 +170,8 @@ router.beforeEach(async (to, from) => {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
 
-  // 从登录页进入时，刷新 permissions 和 menus
-  if (from.path === '/login') {
+  // 定期从 /me 刷新权限和菜单（30 秒间隔，确保角色权限变更后及时生效）
+  if (Date.now() - lastRefreshTime > REFRESH_INTERVAL) {
     try {
       const res = await fetchCurrentUser()
       if (res?.data) {
@@ -178,9 +181,19 @@ router.beforeEach(async (to, from) => {
         savePermissions(permissions || [], inLocal)
         saveMenus(menus || [], inLocal)
       }
+      lastRefreshTime = Date.now()
     } catch {
       clearAuth()
       return { path: '/login', query: { redirect: to.fullPath } }
+    }
+  }
+
+  // 管理员专属页面检查
+  if (to.meta.adminOnly) {
+    const user = getUserInfo()
+    if (!user || user.roleCode !== 'SUPER_ADMIN') {
+      console.warn('[Router] 非管理员尝试访问系统管理页面，已重定向')
+      return { path: '/dashboard' }
     }
   }
 

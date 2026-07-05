@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserInfo } from '../composables/useUserInfo.js'
-import { clearAuth, getMenus, saveMenus, refreshPermissionsAndMenus } from '../api/auth.js'
+import { clearAuth, getMenus, saveMenus, refreshPermissionsAndMenus, getUserInfo, getPermissions } from '../api/auth.js'
 import { fetchVisibleMenus } from '../api/menu.js'
 import ManualControlModal from '../components/ManualControlModal.vue'
 
@@ -66,6 +66,8 @@ async function loadMenus() {
       }
     }
     console.log('[Menu] Final menus:', JSON.stringify(menus.value, null, 2))
+    filterAdminMenus()
+    autoExpandMenus()
   } catch (error) {
     console.warn('[Menu] Failed to fetch menus from API, using cache or fallback', error)
     const cached = getMenus()
@@ -74,6 +76,8 @@ async function loadMenus() {
     } else {
       menus.value = FALLBACK_MENUS
     }
+    filterAdminMenus()
+    autoExpandMenus()
   } finally {
     loadingMenus.value = false
   }
@@ -152,9 +156,40 @@ function navigateTo(item) {
   }
 }
 
+function filterAdminMenus() {
+  const user = getUserInfo()
+  if (!user || user.roleCode !== 'SUPER_ADMIN') {
+    menus.value = menus.value.filter(item => item.name !== '系统管理')
+  }
+}
+
+function autoExpandMenus() {
+  const userPerms = getPermissions()
+  const autoExpand = new Set()
+  
+  function checkItem(item) {
+    if (item.children && item.children.length > 0) {
+      const hasAccessibleChild = item.children.some(child => {
+        if (!child.permissionCode || child.permissionCode === '') {
+          return true
+        }
+        return userPerms.includes(child.permissionCode)
+      })
+      if (hasAccessibleChild) {
+        autoExpand.add(item.id)
+      }
+      item.children.forEach(checkItem)
+    }
+  }
+  
+  menus.value.forEach(checkItem)
+  expandedIds.value = autoExpand
+}
+
 onMounted(async () => {
   await refreshPermissionsAndMenus()
   await loadMenus()
+  autoExpandMenus()
 })
 
 watch(() => route.path, () => {
