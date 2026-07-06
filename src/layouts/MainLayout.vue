@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch, provide } from 'vue'
+import { ref, computed, onMounted, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserInfo } from '../composables/useUserInfo.js'
 import { clearAuth, getMenus, saveMenus, refreshPermissionsAndMenus, getUserInfo, getPermissions } from '../api/auth.js'
@@ -43,7 +43,9 @@ const FALLBACK_MENUS = [
 ]
 
 async function loadMenus() {
-  loadingMenus.value = true
+  if (menus.value.length === 0) {
+    loadingMenus.value = true
+  }
   try {
     console.log('[Menu] Loading menus...')
     const res = await fetchVisibleMenus()
@@ -230,11 +232,6 @@ onMounted(async () => {
   }, { interval: 45000 })
 })
 
-watch(() => route.path, () => {
-  if (route.path !== '/login') {
-    loadMenus()
-  }
-})
 </script>
 
 <template>
