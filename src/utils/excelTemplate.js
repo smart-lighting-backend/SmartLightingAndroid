@@ -1,89 +1,76 @@
-const TEMPLATE_HEADERS = ['设备编号', '设备名称', '所属区域', '经度', '纬度', '额定功率(W)']
+const IMPORT_FIELDS = [
+  {
+    key: 'deviceId',
+    title: '设备编号',
+    defaultIndex: 0,
+    aliases: ['设备编号', '设备ID', '设备编码', '编号', 'deviceId', 'device_id', 'id'],
+  },
+  {
+    key: 'name',
+    title: '设备名称',
+    defaultIndex: 1,
+    aliases: ['设备名称', '名称', '设备名', 'name', 'deviceName', 'device_name'],
+  },
+  {
+    key: 'area',
+    title: '所属区域',
+    defaultIndex: 2,
+    aliases: ['所属区域', '区域', '分区', 'area', 'region'],
+  },
+  {
+    key: 'longitude',
+    title: '经度',
+    defaultIndex: 3,
+    aliases: ['经度', 'longitude', 'lng'],
+  },
+  {
+    key: 'latitude',
+    title: '纬度',
+    defaultIndex: 4,
+    aliases: ['纬度', 'latitude', 'lat'],
+  },
+  {
+    key: 'ratedPower',
+    title: '额定功率(W)',
+    defaultIndex: 5,
+    aliases: ['额定功率(W)', '额定功率', '功率', 'ratedPower', 'rated_power', 'power'],
+  },
+]
 
-// 导出表头
+const TEMPLATE_HEADERS = IMPORT_FIELDS.map(field => field.title)
 const EXPORT_HEADERS = ['设备编号', '设备名称', '所属区域', '安装位置', '状态', '健康分', '额定功率(W)', '是否启用', '最后心跳', '订阅前缀']
 const STATUS_LABELS = { 0: '停用', 1: '在线', 2: '离线', 3: '异常' }
+const SUPPORTED_IMPORT_EXTENSIONS = new Set(['csv', 'xlsx'])
 
-/**
- * 下载批量导入模板 (.csv)
- */
-export function downloadTemplate() {
-  const sampleRow = ['SL-007', '北门-03', 'A区', '106.5622', '29.5621', '60']
-  downloadCsv([TEMPLATE_HEADERS, sampleRow], '设备批量导入模板.csv')
+export async function downloadTemplate() {
+  const rows = [
+    TEMPLATE_HEADERS,
+    ['SL-007', '北门-03', 'A区', '106.5622', '29.5621', '60'],
+  ]
+  const data = await buildXlsxBlobData(rows)
+  downloadBlob(
+    new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+    '设备批量导入模板.xlsx'
+  )
 }
 
-/**
- * 解析上传的 Excel/CSV 文件
- * @param {File} file
- * @returns {Promise<Array>} 解析后的设备数据数组
- */
-export function parseImportFile(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      try {
-        const rows = parseCsv(e.target.result)
+export async function parseImportFile(file) {
+  const ext = getFileExtension(file?.name)
 
-        if (rows.length < 2) {
-          reject(new Error('文件为空或只有表头'))
-          return
-        }
+  if (!SUPPORTED_IMPORT_EXTENSIONS.has(ext)) {
+    throw new Error('仅支持 .xlsx、.csv 格式的设备导入文件；旧版 .xls 请另存为 .xlsx 后导入')
+  }
 
-        // 第一行是表头，从第二行开始解析
-        const headerRow = rows[0]
-        // 建立列索引映射
-        const colMap = {}
-        TEMPLATE_HEADERS.forEach((h, i) => {
-          const idx = headerRow.findIndex(cell => String(cell).trim() === h)
-          if (idx >= 0) colMap[i] = idx
-        })
+  if (ext === 'csv') {
+    const text = await readFileAsText(file)
+    return parseRows(parseCsv(text))
+  }
 
-        const result = []
-        for (let i = 1; i < rows.length; i++) {
-          const row = rows[i]
-          if (!row || row.every(cell => String(cell).trim() === '')) continue // 跳过空行
-
-          const getVal = (fi) => {
-            const ci = colMap[fi]
-            if (ci === undefined) return ''
-            return String(row[ci] ?? '').trim()
-          }
-
-          const device = {
-            deviceId: getVal(0),
-            name: getVal(1),
-            area: getVal(2),
-            longitude: getVal(3),
-            latitude: getVal(4),
-            ratedPower: getVal(5),
-            _row: i + 1, // Excel 行号（1-based + 表头）
-          }
-
-          // 只有 deviceId 非空才算有效行
-          if (device.deviceId) result.push(device)
-        }
-
-        resolve(result)
-      } catch (err) {
-        reject(new Error('文件解析失败：' + err.message))
-      }
-    }
-    reader.onerror = () => reject(new Error('文件读取失败'))
-
-    const ext = file.name.split('.').pop()?.toLowerCase()
-    if (ext && ext !== 'csv') {
-      reject(new Error('当前环境未安装 xlsx 依赖，暂只支持 CSV 文件。请将 Excel 另存为 CSV 后导入。'))
-      return
-    }
-    reader.readAsText(file, 'utf-8')
-  })
+  const buffer = await readFileAsArrayBuffer(file)
+  return parseRows(await parseXlsxRows(buffer))
 }
 
-/**
- * 校验单条设备数据
- * @returns {{ valid: boolean, errors: string[] }}
- */
-export function validateDeviceRow(row, existingDeviceIds) {
+export function validateDeviceRow(row, existingDeviceIds = new Set()) {
   const errors = []
 
   if (!row.deviceId) {
@@ -91,24 +78,26 @@ export function validateDeviceRow(row, existingDeviceIds) {
   } else if (row.deviceId.length > 50) {
     errors.push('设备编号不能超过50个字符')
   } else if (existingDeviceIds.has(row.deviceId)) {
-    errors.push('设备编号重复')
+    errors.push(`设备编号 "${row.deviceId}" 已存在`)
   }
 
   if (row.longitude) {
     const lng = parseFloat(row.longitude)
-    if (isNaN(lng) || lng < 73.5 || lng > 135) {
-      errors.push('经度需在 73.5°~135° 之间（中国境内）')
+    if (Number.isNaN(lng) || lng < 73.5 || lng > 135) {
+      errors.push('经度需在 73.5°~135° 之间')
     }
   }
+
   if (row.latitude) {
     const lat = parseFloat(row.latitude)
-    if (isNaN(lat) || lat < 18 || lat > 54) {
-      errors.push('纬度需在 18°~54° 之间（中国境内）')
+    if (Number.isNaN(lat) || lat < 18 || lat > 54) {
+      errors.push('纬度需在 18°~54° 之间')
     }
   }
+
   if (row.ratedPower) {
-    const p = parseFloat(row.ratedPower)
-    if (isNaN(p) || p <= 0) {
+    const power = parseFloat(row.ratedPower)
+    if (Number.isNaN(power) || power <= 0) {
       errors.push('额定功率需为正数')
     }
   }
@@ -116,86 +105,326 @@ export function validateDeviceRow(row, existingDeviceIds) {
   return { valid: errors.length === 0, errors }
 }
 
-/**
- * 全量校验（含文件内重复检测）
- * @returns {Array} 每行的校验结果
- */
-export function validateAllRows(rows, existingDeviceIds) {
-  const seenIds = new Set(existingDeviceIds)
-  return rows.map((row, i) => {
-    // 检查当前批次内的重复
-    if (row.deviceId && seenIds.has(row.deviceId)) {
-      return { valid: false, errors: [`设备编号 "${row.deviceId}" 重复（文件内第 ${i + 1} 行与前面行重复）`] }
+export function validateAllRows(rows, existingDeviceIds = new Set()) {
+  const existingSet = new Set(existingDeviceIds)
+  const seenRows = new Map()
+
+  return rows.map((row, index) => {
+    const result = validateDeviceRow(row, existingSet)
+    const deviceId = row.deviceId
+
+    if (deviceId) {
+      if (seenRows.has(deviceId)) {
+        result.errors.unshift(`设备编号 "${deviceId}" 与第 ${seenRows.get(deviceId)} 行重复`)
+      } else {
+        seenRows.set(deviceId, row._row || index + 2)
+      }
     }
-    if (row.deviceId) seenIds.add(row.deviceId)
-    const result = validateDeviceRow(row, new Set()) // 不传 existingDeviceIds 因为上面已经处理了
-    if (row.deviceId && existingDeviceIds.has(row.deviceId)) {
-      result.valid = false
-      result.errors.unshift(`设备编号 "${row.deviceId}" 已存在`)
-    }
-    // 合并文件内重复检测
-    if (!result.valid) return result
-    // 重新做完整校验
-    return validateDeviceRow(row, existingDeviceIds)
+
+    result.valid = result.errors.length === 0
+    return result
   })
 }
 
-/**
- * 将设备数据转为上传 payload
- */
 export function rowsToPayload(rows) {
-  return rows.map(r => {
-    const lng = r.longitude || ''
-    const lat = r.latitude || ''
+  return rows.map(row => {
+    const lng = row.longitude || ''
+    const lat = row.latitude || ''
     return {
-      deviceId: r.deviceId,
-      name: r.name || undefined,
-      area: r.area || undefined,
+      deviceId: row.deviceId,
+      name: row.name || undefined,
+      area: row.area || undefined,
       location: (lng && lat) ? `${lng},${lat}` : undefined,
-      ratedPower: r.ratedPower ? parseFloat(r.ratedPower) : undefined,
+      ratedPower: row.ratedPower ? parseFloat(row.ratedPower) : undefined,
       topicPrefix: 'streetlight',
     }
   })
 }
 
-/**
- * 导出设备数据为 CSV 文件
- * @param {Array} devices 设备列表
- * @param {string} area 区域筛选（空=全部）
- */
 export function exportDevices(devices, area = '') {
-  let list = devices
-  if (area) list = devices.filter(d => d.area === area)
-
-  const data = list.map(d => [
-    d.deviceId || '',
-    d.name || '',
-    d.area || '',
-    d.location || '',
-    STATUS_LABELS[d.status] || '未知',
-    d.healthScore != null ? d.healthScore : '',
-    d.ratedPower != null ? d.ratedPower : '',
-    d.enabled !== false ? '是' : '否',
-    d.lastHeartbeatAt ? formatExportTime(d.lastHeartbeatAt) : '',
-    d.topicPrefix || 'streetlight',
+  const list = area ? devices.filter(device => device.area === area) : devices
+  const data = list.map(device => [
+    device.deviceId || '',
+    device.name || '',
+    device.area || '',
+    device.location || '',
+    STATUS_LABELS[device.status] || '未知',
+    device.healthScore != null ? device.healthScore : '',
+    device.ratedPower != null ? device.ratedPower : '',
+    device.enabled !== false ? '是' : '否',
+    device.lastHeartbeatAt ? formatExportTime(device.lastHeartbeatAt) : '',
+    device.topicPrefix || 'streetlight',
   ])
 
   const filename = area ? `设备清单_${area}.csv` : '设备清单_全部.csv'
   downloadCsv([EXPORT_HEADERS, ...data], filename)
 }
 
-function formatExportTime(val) {
-  if (!val) return ''
-  if (Array.isArray(val)) {
-    const [y, m, d, h, mi] = val
-    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')} ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}`
+async function loadZipTools() {
+  return import('three/examples/jsm/libs/fflate.module.js')
+}
+
+async function buildXlsxBlobData(rows) {
+  const { zipSync, strToU8 } = await loadZipTools()
+  const sheetXml = buildSheetXml(rows)
+  return zipSync({
+    '[Content_Types].xml': strToU8(`<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`),
+    '_rels/.rels': strToU8(`<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`),
+    'xl/workbook.xml': strToU8(`<?xml version="1.0" encoding="UTF-8"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="设备导入模板" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`),
+    'xl/_rels/workbook.xml.rels': strToU8(`<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`),
+    'xl/styles.xml': strToU8(`<?xml version="1.0" encoding="UTF-8"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>
+  <fills count="1"><fill><patternFill patternType="none"/></fill></fills>
+  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>
+</styleSheet>`),
+    'xl/worksheets/sheet1.xml': strToU8(sheetXml),
+  }, { level: 6 })
+}
+
+function buildSheetXml(rows) {
+  const dimension = `A1:${columnName(Math.max(...rows.map(row => row.length)) - 1)}${rows.length}`
+  const sheetRows = rows.map((row, rowIndex) => {
+    const rowNumber = rowIndex + 1
+    const cells = row.map((cell, colIndex) => {
+      const ref = `${columnName(colIndex)}${rowNumber}`
+      return `<c r="${ref}" t="inlineStr"><is><t>${escapeXml(cell)}</t></is></c>`
+    }).join('')
+    return `<row r="${rowNumber}">${cells}</row>`
+  }).join('')
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="${dimension}"/>
+  <sheetViews><sheetView workbookViewId="0"/></sheetViews>
+  <sheetFormatPr defaultRowHeight="18"/>
+  <cols>
+    <col min="1" max="2" width="18" customWidth="1"/>
+    <col min="3" max="3" width="16" customWidth="1"/>
+    <col min="4" max="6" width="14" customWidth="1"/>
+  </cols>
+  <sheetData>${sheetRows}</sheetData>
+</worksheet>`
+}
+
+async function parseXlsxRows(buffer) {
+  const { unzipSync } = await loadZipTools()
+  const files = unzipSync(new Uint8Array(buffer))
+  const sheetPath = getFirstSheetPath(files)
+  const sheetXml = readZipText(files, sheetPath)
+
+  if (!sheetXml) {
+    throw new Error('Excel 文件中未找到工作表')
   }
-  return String(val).replace('T', ' ').slice(0, 16)
+
+  const sharedStrings = parseSharedStrings(readZipText(files, 'xl/sharedStrings.xml'))
+  return parseSheetRows(sheetXml, sharedStrings)
+}
+
+function getFirstSheetPath(files) {
+  const workbookXml = readZipText(files, 'xl/workbook.xml')
+  const relsXml = readZipText(files, 'xl/_rels/workbook.xml.rels')
+
+  if (!workbookXml || !relsXml) return 'xl/worksheets/sheet1.xml'
+
+  const workbook = parseXml(workbookXml)
+  const firstSheet = getXmlElements(workbook, 'sheet')[0]
+  const relId = firstSheet?.getAttribute('r:id')
+  if (!relId) return 'xl/worksheets/sheet1.xml'
+
+  const rels = parseXml(relsXml)
+  const relation = getXmlElements(rels, 'Relationship').find(item => item.getAttribute('Id') === relId)
+  const target = relation?.getAttribute('Target')
+
+  if (!target) return 'xl/worksheets/sheet1.xml'
+
+  const normalizedTarget = target.replace(/^\/+/, '')
+  return normalizedTarget.startsWith('xl/') ? normalizedTarget : `xl/${normalizedTarget}`
+}
+
+function parseSharedStrings(xml) {
+  if (!xml) return []
+  const doc = parseXml(xml)
+  return getXmlElements(doc, 'si').map(item =>
+    getXmlElements(item, 't').map(textNode => textNode.textContent || '').join('')
+  )
+}
+
+function parseSheetRows(xml, sharedStrings) {
+  const doc = parseXml(xml)
+  return getXmlElements(doc, 'row').map(rowNode => {
+    const row = []
+    getXmlElements(rowNode, 'c').forEach(cellNode => {
+      const ref = cellNode.getAttribute('r')
+      const colIndex = ref ? columnIndexFromRef(ref) : row.length
+      row[colIndex] = readCellValue(cellNode, sharedStrings)
+    })
+    return row
+  })
+}
+
+function readCellValue(cellNode, sharedStrings) {
+  const type = cellNode.getAttribute('t')
+
+  if (type === 'inlineStr') {
+    return getXmlElements(cellNode, 't').map(node => node.textContent || '').join('')
+  }
+
+  const value = getXmlElements(cellNode, 'v')[0]?.textContent || ''
+  if (type === 's') return sharedStrings[Number(value)] || ''
+  if (type === 'b') return value === '1' ? 'TRUE' : 'FALSE'
+  return value
+}
+
+function readZipText(files, path) {
+  const file = files[path]
+  return file ? new TextDecoder('utf-8').decode(file) : ''
+}
+
+function parseXml(xml) {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml')
+  const parserError = doc.getElementsByTagName('parsererror')[0]
+  if (parserError) throw new Error('Excel XML 内容解析失败')
+  return doc
+}
+
+function getXmlElements(root, localName) {
+  return Array.from(root.getElementsByTagNameNS('*', localName))
+}
+
+function columnIndexFromRef(ref) {
+  const letters = String(ref).match(/[A-Z]+/i)?.[0] || 'A'
+  return [...letters.toUpperCase()].reduce((sum, ch) => sum * 26 + ch.charCodeAt(0) - 64, 0) - 1
+}
+
+function columnName(index) {
+  let name = ''
+  let current = index + 1
+  while (current > 0) {
+    const rem = (current - 1) % 26
+    name = String.fromCharCode(65 + rem) + name
+    current = Math.floor((current - 1) / 26)
+  }
+  return name
+}
+
+function escapeXml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+function parseRows(rows) {
+  const normalizedRows = (rows || []).map(row => Array.isArray(row) ? row : [])
+
+  if (normalizedRows.length < 2) {
+    throw new Error('文件为空或只有表头')
+  }
+
+  const columnMap = buildColumnMap(normalizedRows[0])
+  const result = []
+
+  for (let i = 1; i < normalizedRows.length; i++) {
+    const row = normalizedRows[i]
+    if (!row || row.every(cell => cellToText(cell) === '')) continue
+
+    const device = {
+      deviceId: getMappedValue(row, columnMap, 'deviceId'),
+      name: getMappedValue(row, columnMap, 'name'),
+      area: getMappedValue(row, columnMap, 'area'),
+      longitude: getMappedValue(row, columnMap, 'longitude'),
+      latitude: getMappedValue(row, columnMap, 'latitude'),
+      ratedPower: getMappedValue(row, columnMap, 'ratedPower'),
+      _row: i + 1,
+    }
+
+    if (device.deviceId) result.push(device)
+  }
+
+  return result
+}
+
+function buildColumnMap(headerRow) {
+  const normalizedHeaders = (headerRow || []).map(normalizeHeader)
+  const map = {}
+
+  IMPORT_FIELDS.forEach(field => {
+    const aliases = field.aliases.map(normalizeHeader)
+    const matchedIndex = normalizedHeaders.findIndex(header => aliases.includes(header))
+    map[field.key] = matchedIndex >= 0 ? matchedIndex : field.defaultIndex
+  })
+
+  return map
+}
+
+function getMappedValue(row, columnMap, key) {
+  return cellToText(row[columnMap[key]])
+}
+
+function cellToText(value) {
+  if (value === null || value === undefined) return ''
+  return String(value).replace(/^\ufeff/, '').trim()
+}
+
+function normalizeHeader(value) {
+  return cellToText(value)
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[()（）]/g, '')
+}
+
+function getFileExtension(filename = '') {
+  return String(filename).split('.').pop()?.toLowerCase() || ''
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = event => resolve(event.target.result)
+    reader.onerror = () => reject(new Error('文件读取失败'))
+    reader.readAsText(file, 'utf-8')
+  })
+}
+
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = event => resolve(event.target.result)
+    reader.onerror = () => reject(new Error('文件读取失败'))
+    reader.readAsArrayBuffer(file)
+  })
 }
 
 function downloadCsv(rows, filename) {
   const csv = rows.map(row => row.map(escapeCsvCell).join(',')).join('\r\n')
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
+  downloadBlob(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' }), filename)
+}
+
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -219,7 +448,6 @@ function parseCsv(text) {
   let row = []
   let cell = ''
   let inQuotes = false
-
   const source = String(text || '').replace(/^\ufeff/, '')
 
   for (let i = 0; i < source.length; i++) {
@@ -260,4 +488,13 @@ function parseCsv(text) {
   }
 
   return rows
+}
+
+function formatExportTime(val) {
+  if (!val) return ''
+  if (Array.isArray(val)) {
+    const [y, m, d, h, mi] = val
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')} ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}`
+  }
+  return String(val).replace('T', ' ').slice(0, 16)
 }
