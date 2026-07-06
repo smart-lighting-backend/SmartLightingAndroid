@@ -33,7 +33,8 @@ const FALLBACK_MENUS = [
   {
     id: 10, name: '系统管理', path: '/system', icon: 'setting', sort: 11, children: [
       { id: 11, name: '权限管理', path: '/system/permission', icon: '', sort: 1, children: [] },
-      { id: 12, name: '菜单管理', path: '/system/menu', icon: '', sort: 2, children: [] }
+      { id: 12, name: '菜单管理', path: '/system/menu', icon: '', sort: 2, children: [] },
+      { id: 14, name: '分区管理', path: '/devices/area', icon: '', sort: 3, children: [] }
     ]
   }
 ]

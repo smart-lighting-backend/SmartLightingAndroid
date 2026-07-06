@@ -38,6 +38,12 @@ const routes = [
         meta: { title: '设备管理', permission: 'device:read' },
       },
       {
+        path: 'devices/area',
+        name: 'AreaManagement',
+        component: () => import('../views/AreaManagement.vue'),
+        meta: { title: '分区管理', adminOnly: true },
+      },
+      {
         path: 'devices/:id',
         name: 'DeviceDetail',
         component: () => import('../views/DeviceDetail.vue'),

@@ -30,12 +30,12 @@ export const STATUS_QUERY_MAP = { '全部': undefined, '在线': 1, '离线': 2,
 
 // ── Mock 数据 ──────────────────────────────────────────────────────────────
 const MOCK_DEVICES = [
-  { id: 1, deviceId: 'SL-001', name: '南门-01',     area: 'A区', location: '106.5622,29.5621', status: 1, healthScore: 98.50, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:18:06', enabled: true, deleted: false },
-  { id: 2, deviceId: 'SL-002', name: '东门-02',     area: 'A区', location: '106.5630,29.5630', status: 1, healthScore: 85.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:17:30', enabled: true, deleted: false },
-  { id: 3, deviceId: 'SL-003', name: '创业大道-01', area: 'B区', location: '106.5700,29.5700', status: 2, healthScore: 32.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-01T22:10:00', enabled: true, deleted: false },
-  { id: 4, deviceId: 'SL-004', name: '人民广场-01', area: 'C区', location: '106.5660,29.5660', status: 1, healthScore: 78.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:15:00', enabled: true, deleted: false },
-  { id: 5, deviceId: 'SL-005', name: '工业园-01',   area: 'D区', location: '106.5800,29.5800', status: 1, healthScore: 88.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:16:00', enabled: true, deleted: false },
-  { id: 6, deviceId: 'SL-006', name: '学院路-01',   area: 'E区', location: '106.5900,29.5900', status: 1, healthScore: 95.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:14:00', enabled: true, deleted: false },
+  { id: 1, deviceId: 'SL-001', name: '南门-01',     area: 'A区', areaId: 7,  location: '106.5622,29.5621', status: 1, healthScore: 98.50, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:18:06', enabled: true, deleted: false },
+  { id: 2, deviceId: 'SL-002', name: '东门-02',     area: 'A区', areaId: 8,  location: '106.5630,29.5630', status: 1, healthScore: 85.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:17:30', enabled: true, deleted: false },
+  { id: 3, deviceId: 'SL-003', name: '创业大道-01', area: 'B区', areaId: 9,  location: '106.5700,29.5700', status: 2, healthScore: 32.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-01T22:10:00', enabled: true, deleted: false },
+  { id: 4, deviceId: 'SL-004', name: '人民广场-01', area: 'C区', areaId: 11, location: '106.5660,29.5660', status: 1, healthScore: 78.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:15:00', enabled: true, deleted: false },
+  { id: 5, deviceId: 'SL-005', name: '工业园-01',   area: 'D区', areaId: null, location: '106.5800,29.5800', status: 1, healthScore: 88.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:16:00', enabled: true, deleted: false },
+  { id: 6, deviceId: 'SL-006', name: '学院路-01',   area: 'E区', areaId: null, location: '106.5900,29.5900', status: 1, healthScore: 95.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:14:00', enabled: true, deleted: false },
 ]
 
 const MOCK_DEVICE_STORAGE_KEY = 'smart_light_mock_devices'
@@ -181,6 +181,7 @@ export function fetchDevicePage(params = {}) {
   if (params.deviceId)          body.deviceId      = params.deviceId
   if (params.name)              body.name          = params.name
   if (params.area)              body.area          = params.area
+  if (params.areaId !== undefined && params.areaId !== null) body.areaId = params.areaId
   if (params.location)          body.location      = params.location
   if (params.status !== undefined && params.status !== null) body.status = params.status
   if (params.enabled !== undefined && params.enabled !== null) body.enabled = params.enabled
@@ -198,6 +199,7 @@ export function fetchDevicePage(params = {}) {
     )
   }
   if (body.area)    list = list.filter(d => d.area === body.area)
+  if (body.areaId)  list = list.filter(d => d.areaId === body.areaId)
   if (body.status !== undefined) list = list.filter(d => d.status === body.status)
   if (body.enabled !== undefined) list = list.filter(d => d.enabled === body.enabled)
 
@@ -222,6 +224,7 @@ export function fetchDevicePage(params = {}) {
 export async function fetchDeviceList(params = {}) {
   const body = {}
   if (params.area !== undefined && params.area !== null)   body.area   = params.area
+  if (params.areaId !== undefined && params.areaId !== null) body.areaId = params.areaId
   if (params.status !== undefined && params.status !== null) body.status = params.status
   if (params.keyword)                                       body.name   = params.keyword
 
@@ -235,6 +238,7 @@ export async function fetchDeviceList(params = {}) {
     )
   }
   if (body.area)   mockList = mockList.filter(d => d.area   === body.area)
+  if (body.areaId) mockList = mockList.filter(d => d.areaId === body.areaId)
   if (body.status !== undefined) mockList = mockList.filter(d => d.status === body.status)
 
   const res = await safeCall(
@@ -446,6 +450,17 @@ export function controlDevice(deviceId, payload) {
 // ── 解除手动锁定 DELETE /api/devices/{deviceId}/manual-lock ──────────────
 export function unlockDevice(deviceId) {
   return request.delete(`/api/devices/${deviceId}/manual-lock`)
+}
+
+// ── 批量分配设备区域 PUT /api/devices/batch-area ─────────────────────────
+/**
+ * 批量修改设备的所属区域。
+ * @param {{ deviceIds: number[], areaId: number|null }} data
+ *   - deviceIds  设备数据库 ID 列表（必填）
+ *   - areaId     目标区域 ID（传 null 清除区域关联）
+ */
+export function batchDeviceArea(data) {
+  return request.put('/api/devices/batch-area', data)
 }
 
 // ── 节点列表（手动控制弹窗用） ─────────────────────────────────────────────

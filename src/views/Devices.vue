@@ -1,9 +1,10 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElCascader } from 'element-plus'
 import { Plus, Edit, Delete, Location, Download, Upload } from '@element-plus/icons-vue'
-import { createDevice, deleteDevice, fetchDeviceList, updateDevice, STATUS_MAP, STATUS_QUERY_MAP } from '../api/devices.js'
+import { createDevice, deleteDevice, fetchDeviceList, updateDevice, batchDeviceArea, STATUS_MAP, STATUS_QUERY_MAP } from '../api/devices.js'
+import { fetchAreaTree } from '../api/area.js'
 import { useUserInfo } from '../composables/useUserInfo.js'
 import LocationPicker from '../components/LocationPicker.vue'
 import BatchImport from '../components/BatchImport.vue'
@@ -316,6 +317,114 @@ function formatTime(iso) {
   }
   return iso.replace('T', ' ').slice(0, 16)
 }
+
+// ── 批量操作 ────────────────────────────────────────────────────────────────
+const selectMode = ref(false)
+const selectedIds = ref([])
+const batchDialogVisible = ref(false)
+const batchTargetAreaId = ref(null)
+const areaTreeOptions = ref([])
+
+/** 加载区域树用于 Cascader 选择 */
+async function loadAreaTree() {
+  try {
+    const res = await fetchAreaTree()
+    const raw = Array.isArray(res) ? res : (res.data || [])
+    areaTreeOptions.value = mapAreaTreeToOptions(raw)
+  } catch {
+    areaTreeOptions.value = []
+  }
+}
+function mapAreaTreeToOptions(tree) {
+  return (tree || []).map(node => ({
+    value: node.id,
+    label: node.name,
+    children: node.children?.length ? mapAreaTreeToOptions(node.children) : undefined,
+  }))
+}
+
+function toggleSelectMode() {
+  selectMode.value = !selectMode.value
+  if (!selectMode.value) selectedIds.value = []
+}
+
+function toggleSelect(deviceId) {
+  const idx = selectedIds.value.indexOf(deviceId)
+  if (idx >= 0) selectedIds.value.splice(idx, 1)
+  else selectedIds.value.push(deviceId)
+}
+
+function isSelected(deviceId) {
+  return selectedIds.value.includes(deviceId)
+}
+
+/** 全选当前筛选结果 */
+function selectAllFiltered() {
+  selectedIds.value = filtered.value.map(d => d.deviceId)
+}
+
+/** 打开批量分配弹窗 */
+function openBatchAssign() {
+  const areaTree = areaTreeOptions.value
+  // 如果尚未加载区域树，则加载
+  if (!areaTree.length) loadAreaTree()
+  batchTargetAreaId.value = null
+  batchDialogVisible.value = true
+}
+
+/** 确认批量分配区域 */
+async function confirmBatchAssign() {
+  if (!batchTargetAreaId.value) {
+    ElMessage.warning('请选择目标区域')
+    return
+  }
+  const deviceIds = filtered.value
+    .filter(d => selectedIds.value.includes(d.deviceId))
+    .map(d => d.id)
+  if (!deviceIds.length) {
+    ElMessage.warning('未选中任何设备')
+    return
+  }
+  try {
+    await batchDeviceArea({ deviceIds, areaId: batchTargetAreaId.value })
+    ElMessage.success(`已成功将 ${deviceIds.length} 台设备分配到目标区域`)
+    batchDialogVisible.value = false
+    selectMode.value = false
+    selectedIds.value = []
+    loadDevices()
+  } catch (error) {
+    ElMessage.error(error?.message || '批量分配失败')
+  }
+}
+
+/** 批量清除区域关联 */
+async function batchClearArea() {
+  const deviceIds = filtered.value
+    .filter(d => selectedIds.value.includes(d.deviceId))
+    .map(d => d.id)
+  if (!deviceIds.length) {
+    ElMessage.warning('未选中任何设备')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确认清除 ${deviceIds.length} 台设备的区域关联？`,
+      '清除区域',
+      { confirmButtonText: '确认清除', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await batchDeviceArea({ deviceIds, areaId: null })
+    ElMessage.success(`已清除 ${deviceIds.length} 台设备的区域关联`)
+    selectMode.value = false
+    selectedIds.value = []
+    loadDevices()
+  } catch (error) {
+    ElMessage.error(error?.message || '批量清除失败')
+  }
+}
 </script>
 
 <template>
@@ -333,6 +442,15 @@ function formatTime(iso) {
         <button v-if="hasPerm('device:create')" class="header-btn import-btn" @click="batchImportVisible = true">
           <Upload class="header-btn-icon" />
           批量导入
+        </button>
+        <button
+          v-if="hasPerm('device:update')"
+          class="header-btn batch-btn"
+          :class="{ active: selectMode }"
+          @click="toggleSelectMode"
+        >
+          <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+          {{ selectMode ? '退出批量' : '批量操作' }}
         </button>
         <el-dropdown v-if="hasPerm('device:read')" @command="handleExport">
           <button class="header-btn export-btn">
@@ -394,8 +512,14 @@ function formatTime(iso) {
         v-for="d in filtered"
         :key="d.deviceId"
         class="device-card"
-        @click="router.push(`/devices/${d.deviceId}`)"
+        :class="{ 'card-check-mode': selectMode, 'card-selected': selectMode && isSelected(d.deviceId) }"
+        @click="selectMode ? toggleSelect(d.deviceId) : router.push(`/devices/${d.deviceId}`)"
       >
+        <div v-if="selectMode" class="card-select-overlay" @click.stop="toggleSelect(d.deviceId)">
+          <div class="card-select-check" :class="{ checked: isSelected(d.deviceId) }">
+            <svg v-if="isSelected(d.deviceId)" viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
         <div class="dc-header">
           <div class="dc-icon" :class="getStatusMeta(d).cls">
             <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7z" fill="currentColor"/></svg>
@@ -455,6 +579,25 @@ function formatTime(iso) {
             {{ togglingDeviceId === d.deviceId ? '处理中...' : d.enabled !== false ? '停用设备' : '启用设备' }}
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- 批量操作栏 -->
+    <div v-if="selectMode && selectedIds.length" class="batch-bar">
+      <span class="batch-bar-info">已选 <strong>{{ selectedIds.length }}</strong> / {{ filtered.length }} 台</span>
+      <button class="batch-bar-btn select-all-btn" @click="selectAllFiltered">
+        <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 12l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        全选当前筛选
+      </button>
+      <div class="batch-bar-actions">
+        <button class="batch-bar-btn assign-btn" @click="openBatchAssign">
+          <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="currentColor"/></svg>
+          分配区域
+        </button>
+        <button class="batch-bar-btn clear-btn" @click="batchClearArea">
+          <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          清除区域
+        </button>
       </div>
     </div>
 
@@ -530,6 +673,32 @@ function formatTime(iso) {
       :existingDevices="devices"
       @imported="onBatchImported"
     />
+
+    <!-- 批量分配区域弹窗 -->
+    <ElDialog
+      v-model="batchDialogVisible"
+      title="批量分配区域"
+      width="420px"
+      class="batch-area-dialog"
+    >
+      <div class="batch-area-body">
+        <p class="batch-area-label">选择目标区域：</p>
+        <ElCascader
+          v-model="batchTargetAreaId"
+          :options="areaTreeOptions"
+          :props="{ emitPath: false, checkStrictly: true, expandTrigger: 'hover' }"
+          clearable
+          filterable
+          placeholder="输入区域名称搜索或从树中选择"
+          style="width: 100%"
+        />
+        <p class="batch-area-hint">将 <strong>{{ selectedIds.length }}</strong> 台设备分配到该区域（支持搜索区域名称）</p>
+      </div>
+      <template #footer>
+        <ElButton @click="batchDialogVisible = false">取消</ElButton>
+        <ElButton type="primary" @click="confirmBatchAssign">确认分配</ElButton>
+      </template>
+    </ElDialog>
   </div>
 </template>
 
@@ -685,4 +854,67 @@ function formatTime(iso) {
 .header-btn-icon { width: 14px; height: 14px; flex-shrink: 0; }
 .import-btn:hover { background: rgba(0,120,200,0.22); border-color: rgba(77,208,225,0.4); color: #4dd0e1; }
 .export-btn:hover { background: rgba(0,180,100,0.15); border-color: rgba(76,175,130,0.4); color: #4caf82; }
+.batch-btn:hover { background: rgba(0,120,200,0.22); border-color: rgba(77,208,225,0.4); }
+.batch-btn.active { background: rgba(77,208,225,0.18); border-color: #4dd0e1; color: #4dd0e1; }
+
+/* 卡片选择模式 */
+.card-check-mode { cursor: pointer; }
+.card-check-mode:hover .card-select-check { border-color: rgba(77,208,225,0.6); }
+.card-selected { border-color: rgba(77,208,225,0.5) !important; box-shadow: 0 0 12px rgba(77,208,225,0.15), 0 4px 16px rgba(0,0,0,0.3) !important; }
+.card-select-overlay { position: absolute; top: 8px; left: 8px; z-index: 2; padding: 4px; }
+.card-select-check {
+  width: 20px; height: 20px; border-radius: 4px;
+  border: 2px solid rgba(140,190,220,0.35);
+  background: rgba(8,20,45,0.8);
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.card-select-check.checked { background: #0077cc; border-color: #0077cc; }
+
+/* 批量操作栏 */
+.batch-bar {
+  position: sticky; bottom: 0; z-index: 100;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 20px;
+  margin-top: 16px;
+  background: rgba(10,25,55,0.95);
+  border: 1px solid rgba(0,120,200,0.25);
+  border-radius: 10px;
+  backdrop-filter: blur(12px);
+}
+.batch-bar-info { font-size: 13px; color: rgba(140,190,220,0.7); white-space: nowrap; }
+.batch-bar-info strong { color: #e0f4ff; font-weight: 600; }
+.batch-bar-actions { margin-left: auto; display: flex; gap: 8px; }
+.batch-bar-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 32px; padding: 0 12px; border-radius: 6px;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  transition: all 0.2s; white-space: nowrap;
+}
+.select-all-btn {
+  background: rgba(0,80,140,0.18);
+  border: 1px solid rgba(0,120,200,0.25);
+  color: rgba(140,200,230,0.85);
+}
+.select-all-btn:hover { background: rgba(0,120,200,0.22); color: #4dd0e1; }
+.assign-btn {
+  background: rgba(0,100,180,0.2);
+  border: 1px solid rgba(0,150,230,0.3);
+  color: #4dd0e1;
+}
+.assign-btn:hover { background: rgba(0,150,230,0.3); }
+.clear-btn {
+  background: rgba(180,30,30,0.1);
+  border: 1px solid rgba(200,60,60,0.22);
+  color: rgba(220,100,100,0.85);
+}
+.clear-btn:hover { background: rgba(200,60,60,0.2); color: #ff7070; }
+
+/* 批量分配弹窗 */
+.batch-area-dialog :deep(.el-dialog__body) { padding: 20px 24px; }
+.batch-area-body { padding: 4px 0; }
+.batch-area-label { font-size: 13px; color: rgba(190,220,240,0.8); margin-bottom: 10px; }
+.batch-area-hint { font-size: 12px; color: rgba(140,190,220,0.55); margin-top: 12px; }
+.batch-area-dialog :deep(.el-cascader__wrapper) { background: rgba(8,20,45,0.72); }
+.batch-area-dialog :deep(.el-cascader__search-input) { color: #d0eaf8; }
 </style>
