@@ -3,6 +3,8 @@ import { ref, computed, onMounted, watch, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserInfo } from '../composables/useUserInfo.js'
 import { clearAuth, getMenus, saveMenus, refreshPermissionsAndMenus, getUserInfo, getPermissions } from '../api/auth.js'
+import { fetchAlarmPage } from '../api/warnings.js'
+import { useAutoRefresh } from '../composables/useAutoRefresh.js'
 import { fetchVisibleMenus } from '../api/menu.js'
 import ManualControlModal from '../components/ManualControlModal.vue'
 
@@ -12,6 +14,7 @@ const { username, roleName, permissions } = useUserInfo()
 
 const showManual = ref(false)
 const showUserMenu = ref(false)
+const alarmCount = ref(0)
 
 // ═══ 动态导航菜单（遵循文档：登录后使用API返回的menus，刷新时请求/me）═══════════════════════════
 const menus = ref([])
@@ -202,6 +205,17 @@ onMounted(async () => {
   await refreshPermissionsAndMenus()
   await loadMenus()
   autoExpandMenus()
+  // 告警角标自动刷新
+  fetchAlarmPage({ status: 'ACTIVE', pageNum: 1, pageSize: 1 }).then(res => {
+    const d = res?.data
+    alarmCount.value = d?.total ?? (Array.isArray(d) ? d.length : 0)
+  }).catch(() => {})
+  useAutoRefresh(() => {
+    fetchAlarmPage({ status: 'ACTIVE', pageNum: 1, pageSize: 1 }).then(res => {
+      const d = res?.data
+      alarmCount.value = d?.total ?? (Array.isArray(d) ? d.length : 0)
+    }).catch(() => {})
+  }, { interval: 45000 })
 })
 
 watch(() => route.path, () => {
@@ -306,7 +320,7 @@ watch(() => route.path, () => {
           </button>
           <button class="icon-btn" @click="$router.push('/warning')">
             <svg viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <span class="badge-dot">3</span>
+            <span class="badge-dot" v-if="alarmCount > 0">{{ alarmCount }}</span>
           </button>
 
           <button class="icon-btn avatar-btn" @click="showUserMenu = !showUserMenu">

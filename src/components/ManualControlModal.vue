@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
 import { fetchDeviceNodes, controlDevice, unlockDevice } from '../api/devices.js'
+import { useAutoRefresh } from '../composables/useAutoRefresh.js'
 
 const emit = defineEmits(['close'])
 
@@ -50,6 +51,16 @@ onMounted(async () => {
     selectedNode.value = nodes.value[0]
     applyDeviceState(nodes.value[0])
   }
+  // 设备状态每 20 秒自动同步
+  useAutoRefresh(async () => {
+    const r = await fetchDeviceNodes()
+    const list = Array.isArray(r) ? r : (r.data || [])
+    nodes.value = list
+    if (selectedNode.value) {
+      const updated = list.find(n => n.deviceId === selectedNode.value.deviceId || n.id === selectedNode.value.id)
+      if (updated) applyDeviceState(updated)
+    }
+  }, { interval: 20000, isSensitive: () => sending.value })
 })
 
 watch(selectedNode, (node) => {

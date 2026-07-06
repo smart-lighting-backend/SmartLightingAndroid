@@ -9,6 +9,7 @@ import { fetchDeviceDetail } from '../api/devices.js';
 import { fetchLatestTelemetry, fetchTelemetryHistory } from '../api/telemetry.js';
 import { sendControlCommand, getControlHistory } from '../api/control.js';
 import { useUserInfo } from '../composables/useUserInfo.js';
+import { useAutoRefresh } from '../composables/useAutoRefresh.js';
 const { hasPerm } = useUserInfo();
 const route = useRoute();
 const router = useRouter();
@@ -621,6 +622,23 @@ onMounted(async () => {
  initChart();
  window.addEventListener('resize', handleResize);
  }, 100);
+ // 实时遥测 + 设备状态 每 12 秒自动刷新（静默，不触发 loading 遮罩）
+ useAutoRefresh(async () => {
+   try {
+     const [res1, res2] = await Promise.all([
+       fetchDeviceDetail(deviceId.value),
+       fetchLatestTelemetry(deviceId.value),
+     ])
+     if (res1.code === 200) {
+       deviceInfo.value = mapDeviceInfo(res1.data)
+       const state = parseLatestData(res1.data?.latestData)
+       applyControlState(state)
+     }
+     if (res2.code === 200) {
+       latestTelemetry.value = res2.data
+     }
+   } catch {}
+ }, { interval: 12000 })
 });
 onBeforeUnmount(() => {
  if (resizeTimer) {

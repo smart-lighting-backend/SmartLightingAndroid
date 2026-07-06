@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { fetchDashboardStats, fetchEnergyTrend, fetchDistrictData, fetchEdgeStatus, triggerEdgeSimulation, fetchEdgeRecent, triggerEnergyCalc, genTestData } from '../api/dashboard.js'
 import { fetchAllDevicesForMap } from '../api/devices.js'
 import { useChartScale } from '../composables/useChartScale.js'
+import { useAutoRefresh } from '../composables/useAutoRefresh.js'
 import DeviceMap from '../components/DeviceMap.vue'
 import * as echarts from 'echarts'
 
@@ -101,6 +102,19 @@ async function refreshEdgeStatus() {
   } catch {}
 }
 
+async function refreshLiveData() {
+  try {
+    const [s, e, r] = await Promise.all([
+      fetchDashboardStats(),
+      fetchEdgeStatus(),
+      fetchEdgeRecent(),
+    ])
+    stats.value = s.data || {}
+    edgeStatus.value = e.data || {}
+    edgeRecent.value = r.data || []
+  } catch {}
+}
+
 async function handleTriggerEdge() {
   edgeLoading.value = true
   try {
@@ -160,6 +174,8 @@ onMounted(async () => {
     stopScaleWatch = onScaleChange(() => initChart(trendData))
     window.addEventListener('resize', handleChartResize)
     nextTick(setupSectionObserver)
+    // 统计卡片 + 边缘AI 每 45 秒自动刷新
+    useAutoRefresh(refreshLiveData, { interval: 45000 })
   } catch (e) {
     console.error('[Dashboard] onMounted ERROR:', e.message, e.stack)
   }

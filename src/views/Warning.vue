@@ -3,6 +3,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { fetchAlarmPage, fetchAlarmExportList, ALARM_STATUS_MAP, ALARM_LEVEL_MAP, ALARM_TYPE_MAP } from '../api/warnings.js'
 import { buildAlarmCsvContent, formatAlarmTime } from '../utils/alarmExport.js'
+import { useAutoRefresh } from '../composables/useAutoRefresh.js'
 
 const alarms  = ref([])
 const total   = ref(0)
@@ -126,7 +127,13 @@ function typeLabel(type) {
   return ALARM_TYPE_MAP[type] || type || '--'
 }
 
-onMounted(loadData)
+onMounted(() => {
+  loadData()
+  useAutoRefresh(loadData, {
+    interval: 25000,
+    isSensitive: () => exporting.value || filters.startTime || filters.endTime,
+  })
+})
 </script>
 
 <template>

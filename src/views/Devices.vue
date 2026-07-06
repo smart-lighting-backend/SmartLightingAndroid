@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useAutoRefresh } from '../composables/useAutoRefresh.js'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, ElCascader } from 'element-plus'
 import { Plus, Edit, Delete, Location, Download, Upload } from '@element-plus/icons-vue'
@@ -115,7 +116,21 @@ async function loadDevices() {
   }
 }
 
-onMounted(loadDevices)
+onMounted(() => {
+  loadDevices()
+  useAutoRefresh(async () => {
+    // 静默刷新，不触发表格 loading 遮罩
+    try {
+      const statusVal = STATUS_QUERY_MAP[statusFilter.value]
+      const res = await fetchDeviceList({ status: statusVal })
+      const raw = Array.isArray(res) ? res : (res.data || [])
+      devices.value = raw
+    } catch {}
+  }, {
+    interval: 60000,
+    isSensitive: () => createDialogVisible.value || deletingDeviceId.value || togglingDeviceId.value,
+  })
+})
 
 const filtered = computed(() => {
   const kw = search.value.toLowerCase()

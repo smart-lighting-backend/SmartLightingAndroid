@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { fetchVisionEvents, fetchVoiceEvents } from '../api/events.js'
+import { useAutoRefresh } from '../composables/useAutoRefresh.js'
 import { ElInput, ElSelect, ElOption, ElPagination, ElTag, ElMessage } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 
@@ -88,7 +89,15 @@ function confidenceColor(val) {
   return '#f44336'
 }
 
-onMounted(loadVisionEvents)
+function refreshActiveTab() {
+  if (activeTab.value === 'vision') loadVisionEvents()
+  else loadVoiceEvents()
+}
+
+onMounted(() => {
+  loadVisionEvents()
+  useAutoRefresh(refreshActiveTab, { interval: 25000 })
+})
 </script>
 
 <template>
