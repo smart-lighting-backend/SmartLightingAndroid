@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAMap } from '../composables/useAMap.js'
 import { parseLocation } from '../utils/coordinate.js'
@@ -26,6 +26,10 @@ let resizeObserver = null
 
 const COLORS = { 0: '#888888', 1: '#4caf82', 2: '#9e9e9e', 3: '#ffa726' }
 const LABELS = { 0: '停用', 1: '在线', 2: '离线', 3: '异常' }
+
+const noLocationCount = computed(() =>
+  props.devices.filter(d => !parseLocation(d.location)).length
+)
 
 // ── 简易圆形图标（Canvas → data URI） ──
 // ── Canvas 路灯图标 ──
@@ -225,6 +229,9 @@ defineExpose({ highlightDevice, clearHighlight, fitBounds: () => {} })
       <span v-else-if="error" class="dm-error">{{ error }}</span>
     </div>
     <div ref="mapContainerRef" class="dm-container"></div>
+    <div v-if="noLocationCount > 0" class="dm-no-loc-hint">
+      {{ noLocationCount }} 台设备无位置信息，未在地图上显示
+    </div>
   </div>
 </template>
 
@@ -252,4 +259,10 @@ defineExpose({ highlightDevice, clearHighlight, fitBounds: () => {} })
   background: rgba(8,20,45,0.55); color: rgba(140,190,220,0.7); font-size: 13px;
 }
 .dm-error { color: #ef5350; }
+.dm-no-loc-hint {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 10;
+  padding: 6px 12px; text-align: center; font-size: 12px;
+  color: rgba(255,200,100,0.85); background: rgba(0,10,30,0.8);
+  border-top: 1px solid rgba(255,167,38,0.3);
+}
 </style>

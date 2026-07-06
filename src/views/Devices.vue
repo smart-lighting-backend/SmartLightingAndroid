@@ -21,7 +21,7 @@ const areaFilter = ref('全部')
 const statusFilter = ref('全部')
 const statuses = ['全部', '在线', '离线', '异常', '停用']
 const areaOptions = computed(() => {
-  const areas = [...new Set(devices.value.map(d => d.area).filter(Boolean))]
+  const areas = [...new Set(devices.value.map(d => d.area || '未分类'))]
   return ['全部', ...areas.sort()]
 })
 const createDialogVisible = ref(false)
@@ -48,11 +48,17 @@ const areaBindingSubmitting = ref(false)
 const areaUnbindingDeviceId = ref('')
 
 function handleExport(area) {
-  const list = area
-    ? devices.value.filter(d => d.area === area)
-    : devices.value
+  let list
+  if (!area || area === '全部') {
+    list = devices.value
+  } else if (area === '未分类') {
+    list = devices.value.filter(d => !d.area)
+  } else {
+    list = devices.value.filter(d => d.area === area)
+  }
   if (!list.length) { ElMessage.warning('没有可导出的设备'); return }
-  exportDevices(list, area)
+  const label = area === '未分类' ? '' : area
+  exportDevices(list, label)
   ElMessage.success(`已导出 ${list.length} 台设备`)
 }
 
@@ -145,7 +151,8 @@ const filtered = computed(() => {
   const kw = search.value.toLowerCase()
   return devices.value.filter(d => {
     const matchSearch = !kw || d.deviceId?.toLowerCase().includes(kw) || d.name?.toLowerCase().includes(kw) || d.area?.toLowerCase().includes(kw)
-    if (areaFilter.value !== '全部' && d.area !== areaFilter.value) return false
+    if (areaFilter.value === '未分类') { if (d.area) return false }
+    else if (areaFilter.value !== '全部' && d.area !== areaFilter.value) return false
     if (statusFilter.value === '全部') return matchSearch
     const statusVal = STATUS_QUERY_MAP[statusFilter.value]
     return matchSearch && displayStatus(d) === statusVal
@@ -596,7 +603,8 @@ async function batchClearArea() {
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="">全部设备</el-dropdown-item>
-              <el-dropdown-item v-for="area in [...new Set(devices.map(d=>d.area).filter(Boolean))]" :key="area" :command="area">
+              <el-dropdown-item v-for="area in areaOptions.filter(a => a !== '全部')" :key="area" :command="area">
+                {{ area }}
                 {{ area }}
               </el-dropdown-item>
             </el-dropdown-menu>
