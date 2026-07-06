@@ -49,7 +49,19 @@ export async function updateUser(id, data) {
 }
 
 /**
- * 删除用户
+ * 停用用户
+ */
+export async function disableUser(id) {
+  try {
+    const res = await request.put(`/api/users/${id}/disable`)
+    return res
+  } catch (error) {
+    throw error
+  }
+}
+
+/**
+ * 物理删除用户
  */
 export async function deleteUser(id) {
   try {

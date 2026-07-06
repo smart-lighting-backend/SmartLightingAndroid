@@ -3,8 +3,8 @@ import { ref, onMounted } from 'vue'
 import {
   ElInput, ElButton, ElTable, ElTableColumn, ElTag, ElCard, ElDialog, ElForm, ElFormItem, ElSelect, ElOption, ElMessage, ElMessageBox, ElPagination
 } from 'element-plus'
-import { Search, Plus, Edit, Delete } from '@element-plus/icons-vue'
-import { fetchUserList, fetchAllRoles, createUser, updateUser, deleteUser } from '../api/user'
+import { Search, Plus, Edit, Delete, CircleClose, CircleCheck } from '@element-plus/icons-vue'
+import { fetchUserList, fetchAllRoles, createUser, updateUser, disableUser, deleteUser } from '../api/user'
 import { useUserInfo } from '../composables/useUserInfo.js'
 
 const { hasPerm } = useUserInfo()
@@ -177,11 +177,37 @@ const handleSubmit = async () => {
   })
 }
 
-const handleDelete = (row) => {
-  ElMessageBox.confirm(`确定要删除用户 "${row.username}" 吗？`, '警告', {
+const handleToggleEnabled = (row) => {
+  const isDisabled = row.enabled === false
+  const actionText = isDisabled ? '启用' : '停用'
+  const message = isDisabled
+    ? `确定要启用用户 "${row.username}" 吗？启用后该账号将恢复正常使用。`
+    : `确定要停用用户 "${row.username}" 吗？停用后该账号将无法正常使用。`
+
+  ElMessageBox.confirm(message, '警告', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
+  }).then(async () => {
+    try {
+      if (isDisabled) {
+        await updateUser(row.id, { enabled: true })
+      } else {
+        await disableUser(row.id)
+      }
+      ElMessage.success(`${actionText}成功`)
+      loadUsers()
+    } catch (error) {
+      ElMessage.error(`${actionText}失败`)
+    }
+  }).catch(() => {})
+}
+
+const handleDelete = (row) => {
+  ElMessageBox.confirm(`确定要物理删除用户 "${row.username}" 吗？删除后数据将无法恢复。`, '危险操作', {
+    confirmButtonText: '删除',
+    cancelButtonText: '取消',
+    type: 'error'
   }).then(async () => {
     try {
       await deleteUser(row.id)
@@ -270,9 +296,14 @@ onMounted(() => {
             </span>
           </template>
         </ElTableColumn>
-        <ElTableColumn label="操作" width="180" fixed="right">
+        <ElTableColumn label="操作" width="230" fixed="right">
           <template #default="{ row }">
             <ElButton v-if="hasPerm('user:update')" type="primary" link @click="handleEdit(row)"><Edit /> 编辑</ElButton>
+            <ElButton v-if="hasPerm('user:update')" :type="row.enabled === false ? 'success' : 'warning'" link @click="handleToggleEnabled(row)">
+              <CircleCheck v-if="row.enabled === false" />
+              <CircleClose v-else />
+              {{ row.enabled === false ? '启用' : '停用' }}
+            </ElButton>
             <ElButton v-if="hasPerm('user:delete')" type="danger" link @click="handleDelete(row)"><Delete /> 删除</ElButton>
           </template>
         </ElTableColumn>
