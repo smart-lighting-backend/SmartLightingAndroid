@@ -39,10 +39,9 @@ export const ALARM_LEVEL_MAP = {
 }
 
 export const ALARM_TYPE_MAP = {
-  OFFLINE:  '离线',
-  FAULT:    '故障',
-  SECURITY: '安全',
-  VISION:   '视觉',
+  OFFLINE:     '离线',
+  FAULT:       '故障',
+  HEALTH_LOW:  '健康分过低',
 }
 
 // ── Mock 数据 ─────────────────────────────────────────────────────────────

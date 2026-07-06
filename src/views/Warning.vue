@@ -1,9 +1,12 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchAlarmPage, fetchAlarmExportList, ALARM_STATUS_MAP, ALARM_LEVEL_MAP, ALARM_TYPE_MAP } from '../api/warnings.js'
 import { buildAlarmCsvContent, formatAlarmTime } from '../utils/alarmExport.js'
 import { useAutoRefresh } from '../composables/useAutoRefresh.js'
+
+const route = useRoute()
 
 const alarms  = ref([])
 const total   = ref(0)
@@ -23,11 +26,10 @@ const pageSize    = 10
 
 // 过滤选项（映射到后端枚举值）
 const typeOptions  = [
-  { label: '全部类型', value: 'ALL' },
-  { label: '离线',     value: 'OFFLINE' },
-  { label: '故障',     value: 'FAULT' },
-  { label: '安全',     value: 'SECURITY' },
-  { label: '视觉',     value: 'VISION' },
+  { label: '全部类型',   value: 'ALL' },
+  { label: '离线',       value: 'OFFLINE' },
+  { label: '故障',       value: 'FAULT' },
+  { label: '健康分过低',  value: 'HEALTH_LOW' },
 ]
 const levelOptions = [
   { label: '全部级别', value: 'ALL' },
@@ -128,6 +130,15 @@ function typeLabel(type) {
 }
 
 onMounted(() => {
+  // 从 URL 参数预设筛选条件（如 Dashboard 跳转来的 ?status=ACTIVE）
+  const statusParam = route.query.status
+  if (statusParam && statusOptions.some(o => o.value === statusParam)) {
+    filters.status = statusParam
+  }
+  const typeParam = route.query.type
+  if (typeParam && typeOptions.some(o => o.value === typeParam)) {
+    filters.type = typeParam
+  }
   loadData()
   useAutoRefresh(loadData, {
     interval: 25000,

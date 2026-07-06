@@ -235,7 +235,7 @@ onUnmounted(() => {
             <div class="stat-body">
               <div class="stat-value warn">{{ stats.alertCount }}</div>
               <div class="stat-label">未处理告警</div>
-              <div class="stat-hint warn-hint" @click="$router.push('/warning')" style="cursor:pointer">点击查看 →</div>
+              <div class="stat-hint warn-hint" @click="$router.push('/warning?status=ACTIVE')" style="cursor:pointer">点击查看 →</div>
             </div>
           </div>
           <div class="stat-card edge">
