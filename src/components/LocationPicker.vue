@@ -11,7 +11,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'update:visible', 'confirm'])
 
-const { AMap: AMapRef, loaded, loading, error } = useAMap()
+const { AMap: AMapRef, loaded, loading, error, retry } = useAMap()
 const mapContainerRef = ref(null)
 
 const currentLng = ref('')
@@ -63,18 +63,26 @@ function placePin(lng, lat) {
   }
 }
 
-// 原始位置标记——粉色圆点，编辑模式下显示设备原来在哪
+// 原始位置标记——粉色高亮圆点 + 脉冲光圈，编辑模式下显示设备原来在哪
 function placeOrigMarker(lng, lat) {
   if (!map || !AMapRef.value) return
   if (origMarker) origMarker.setMap(null)
-  const html = `<div title="原始位置" style="width:16px;height:16px;background:#ff69b4;border:2.5px solid #fff;border-radius:50%;box-shadow:0 0 12px rgba(255,105,180,0.6);"></div>`
+  const html = `<div style="position:relative;width:32px;height:32px;display:flex;align-items:center;justify-content:center">
+    <div class="orig-pulse-ring"></div>
+    <div style="width:18px;height:18px;background:#ff1493;border:3px solid #fff;border-radius:50%;box-shadow:0 0 20px rgba(255,20,147,0.9),0 0 40px rgba(255,105,180,0.5);position:relative;z-index:2"></div>
+    <div style="position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:#ff69b4;font-size:10px;padding:1px 5px;border-radius:3px;white-space:nowrap;font-weight:bold">原位</div>
+  </div>`
   origMarker = new AMapRef.value.Marker({
     position: [lng, lat],
     content: html,
     anchor: "center",
-    zIndex: 250,
+    zIndex: 260,
   })
   origMarker.setMap(map)
+}
+
+function retryLoadMap() {
+  retry()
 }
 
 function onMapClick(e) {
@@ -194,6 +202,13 @@ watch(() => props.visible, (v) => {
     addressResults.value = []
     searchDeviceId.value = ''
     nextTick(() => { if (loaded.value) { initMap(); addDeviceMarkers() } })
+  } else {
+    // 关闭弹窗时销毁地图实例，确保下次打开时重新初始化
+    if (pinMarker) { pinMarker.setMap(null); pinMarker = null }
+    if (origMarker) { origMarker.setMap(null); origMarker = null }
+    deviceMarkers.forEach(m => m.setMap(null))
+    deviceMarkers = []
+    if (map) { map.destroy(); map = null }
   }
 })
 
@@ -241,7 +256,10 @@ onUnmounted(() => {
       <div class="lp-map-wrap">
         <div v-if="!loaded" class="lp-loading">
           <span v-if="loading">地图加载中...</span>
-          <span v-else-if="error">{{ error }}</span>
+          <template v-else-if="error">
+            <span>{{ error }}</span>
+            <button class="lp-retry-btn" @click="retryLoadMap">重试</button>
+          </template>
         </div>
         <div ref="mapContainerRef" class="lp-map"></div>
       </div>
@@ -259,6 +277,7 @@ onUnmounted(() => {
           <span class="lp-legend-item"><i style="background:#4caf82"></i> 在线</span>
           <span class="lp-legend-item"><i style="background:#9e9e9e"></i> 离线</span>
           <span class="lp-legend-item"><i style="background:#ffa726"></i> 异常</span>
+          <span class="lp-legend-item"><i style="background:#ff1493"></i> 原位</span>
           <span class="lp-legend-item"><i style="background:#ff4444"></i> 新选点</span>
         </div>
         <div v-if="confirmMsg" class="lp-warn">{{ confirmMsg }}</div>
@@ -346,4 +365,25 @@ onUnmounted(() => {
 .lp-legend-item i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.7); }
 
 .lp-warn { color: #ef5350; font-size: 13px; flex-shrink: 0; }
+
+/* 原始位置脉冲光圈 */
+.orig-pulse-ring {
+  position: absolute; z-index: 1;
+  width: 28px; height: 28px;
+  border: 2.5px solid rgba(255,20,147,0.6);
+  border-radius: 50%;
+  animation: origPulse 1.6s ease-out infinite;
+}
+@keyframes origPulse {
+  0%   { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.0); opacity: 0; }
+}
+
+.lp-retry-btn {
+  margin-top: 10px; padding: 5px 18px;
+  background: rgba(0,120,200,0.25); border: 1px solid rgba(0,150,220,0.4);
+  border-radius: 6px; color: #4dd0e1; cursor: pointer; font-size: 13px;
+  transition: all 0.2s;
+}
+.lp-retry-btn:hover { background: rgba(0,120,200,0.4); border-color: #4dd0e1; }
 </style>

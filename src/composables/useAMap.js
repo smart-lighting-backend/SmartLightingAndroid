@@ -50,11 +50,11 @@ export function useAMap() {
     }
 
     const timeout = setTimeout(() => {
-      const err = new Error('高德地图 SDK 加载超时（15s）')
+      const err = new Error('高德地图 SDK 加载超时（30s）')
       error.value = err.message
       loading.value = false
       reject(err)
-    }, 15000)
+    }, 30000)
 
     // 仅当 index.html 未预设时补充（避免覆盖）
     if (!window._AMapSecurityConfig?.securityJsCode) {
@@ -83,5 +83,48 @@ export function useAMap() {
     document.head.appendChild(script)
   })
 
-  return { AMap, loaded, loading, error }
+  function retry() {
+    // 清理缓存状态，移除旧 script 标签，重新触发加载
+    loadPromise = null
+    cachedAMap = null
+    error.value = null
+
+    const oldScript = document.querySelector('script[src*="webapi.amap.com/maps"]')
+    if (oldScript) oldScript.remove()
+
+    loading.value = true
+    loadPromise = new Promise((resolve, reject) => {
+      const key = import.meta.env.VITE_AMAP_KEY
+      if (!key) {
+        const err = new Error('VITE_AMAP_KEY 未配置')
+        error.value = err.message
+        loading.value = false
+        reject(err)
+        return
+      }
+      const timeout = setTimeout(() => {
+        loading.value = false
+        reject(new Error('高德地图 SDK 加载超时'))
+      }, 30000)
+      const script = document.createElement('script')
+      script.src = `https://webapi.amap.com/maps?v=2.0&key=${key}&plugin=AMap.MarkerCluster`
+      script.onload = () => {
+        clearTimeout(timeout)
+        cachedAMap = window.AMap
+        AMap.value = cachedAMap
+        loaded.value = true
+        loading.value = false
+        resolve(cachedAMap)
+      }
+      script.onerror = () => {
+        clearTimeout(timeout)
+        error.value = '高德地图 SDK 加载失败'
+        loading.value = false
+        reject(new Error('加载失败'))
+      }
+      document.head.appendChild(script)
+    })
+  }
+
+  return { AMap, loaded, loading, error, retry }
 }
