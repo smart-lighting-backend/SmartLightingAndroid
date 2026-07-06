@@ -37,6 +37,7 @@ const MOCK_DEVICES = [
   { id: 4, deviceId: 'SL-004', name: '人民广场-01', area: 'C区', areaId: 11, location: '106.5660,29.5660', status: 1, healthScore: 78.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:15:00', enabled: true, deleted: false },
   { id: 5, deviceId: 'SL-005', name: '工业园-01',   area: 'D区', areaId: null, location: '106.5800,29.5800', status: 1, healthScore: 88.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:16:00', enabled: true, deleted: false },
   { id: 6, deviceId: 'SL-006', name: '学院路-01',   area: 'E区', areaId: null, location: '106.5900,29.5900', status: 1, healthScore: 95.00, topicPrefix: 'streetlight', lastHeartbeatAt: '2026-07-02T09:14:00', enabled: true, deleted: false },
+  { id: 7, deviceId: 'SL-007', name: '测试设备-无坐标', area: null, areaId: null, location: '', status: 1, healthScore: 100.00, topicPrefix: 'streetlight', lastHeartbeatAt: null, enabled: true, deleted: false },
 ]
 
 const MOCK_DEVICE_STORAGE_KEY = 'smart_light_mock_devices'
