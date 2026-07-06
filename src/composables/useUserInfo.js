@@ -3,13 +3,19 @@
  * 读取本地缓存的用户信息、权限列表、菜单树
  */
 import { computed } from 'vue'
-import { getUserInfo, getPermissions, getMenus } from '../api/auth.js'
+import { getUserInfo, getPermissions, getMenus, getPermVersionRef } from '../api/auth.js'
 
 export function useUserInfo() {
+  // 追踪权限版本号，使 computed 在权限变更时重新求值
+  const permVersion = getPermVersionRef()
+
   const userInfo = computed(() => getUserInfo() || { username: 'Admin', roleCode: 'SUPER_ADMIN', roleName: '系统管理员' })
   const username = computed(() => userInfo.value?.username || 'Admin')
   const roleName = computed(() => userInfo.value?.roleName || '系统管理员')
-  const permissions = computed(() => getPermissions())
+  const permissions = computed(() => {
+    permVersion.value  // 建立响应式依赖：版本号递增时重新读取 storage
+    return getPermissions()
+  })
   const menus = computed(() => getMenus())
 
   /**
