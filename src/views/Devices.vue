@@ -17,8 +17,13 @@ const devices  = ref([])
 const loading  = ref(false)
 const togglingDeviceId = ref('')
 const search   = ref('')
+const areaFilter = ref('全部')
 const statusFilter = ref('全部')
 const statuses = ['全部', '在线', '离线', '异常', '停用']
+const areaOptions = computed(() => {
+  const areas = [...new Set(devices.value.map(d => d.area).filter(Boolean))]
+  return ['全部', ...areas.sort()]
+})
 const createDialogVisible = ref(false)
 const createFormRef = ref(null)
 const creatingDevice = ref(false)
@@ -135,6 +140,7 @@ const filtered = computed(() => {
   const kw = search.value.toLowerCase()
   return devices.value.filter(d => {
     const matchSearch = !kw || d.deviceId?.toLowerCase().includes(kw) || d.name?.toLowerCase().includes(kw) || d.area?.toLowerCase().includes(kw)
+    if (areaFilter.value !== '全部' && d.area !== areaFilter.value) return false
     if (statusFilter.value === '全部') return matchSearch
     const statusVal = STATUS_QUERY_MAP[statusFilter.value]
     return matchSearch && displayStatus(d) === statusVal
@@ -495,6 +501,16 @@ async function batchClearArea() {
       </div>
     </div>
 
+    <!-- 分区筛选标签 -->
+    <div class="area-tabs" v-if="areaOptions.length > 1">
+      <button
+        v-for="a in areaOptions" :key="a"
+        class="area-tab"
+        :class="{ active: areaFilter === a }"
+        @click="areaFilter = a"
+      >{{ a === '全部' ? '全部设备' : a }}</button>
+    </div>
+
     <!-- 统计条 -->
     <div class="summary-bar">
       <span class="summary-item">
@@ -749,6 +765,15 @@ async function batchClearArea() {
   color: rgba(140,190,220,0.7); font-size: 12px; cursor: pointer; transition: all 0.2s;
 }
 .status-tab.active { background: rgba(0,120,220,0.2); border-color: rgba(77,208,225,0.4); color: #4dd0e1; }
+
+.area-tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.area-tab {
+  padding: 8px 18px; background: rgba(0,30,70,0.5);
+  border: 1px solid rgba(0,100,160,0.25); border-radius: 7px;
+  color: rgba(150,200,230,0.7); font-size: 13px; cursor: pointer; transition: all 0.2s;
+}
+.area-tab:hover { border-color: rgba(77,208,225,0.35); color: rgba(180,220,240,0.9); }
+.area-tab.active { background: rgba(0,120,220,0.2); border-color: rgba(77,208,225,0.5); color: #4dd0e1; font-weight: 600; }
 
 /* Summary */
 .summary-bar { display: flex; gap: 20px; margin-bottom: 16px; }

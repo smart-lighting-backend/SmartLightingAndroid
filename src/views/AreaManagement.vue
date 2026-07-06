@@ -294,7 +294,7 @@ async function handleSubmit() {
 async function handleDelete(node) {
   try {
     await ElMessageBox.confirm(
-      `确认删除区域“${node.name}”？${
+      `确认删除区域”${node.name}”？${
         node.children?.length ? '该区域下有子区域，无法删除。' : '若该区域已被设备引用，将拒绝删除。'
       }`,
       '删除区域',
@@ -314,7 +314,12 @@ async function handleDelete(node) {
     if (selectedNode.value?.id === node.id) selectedNode.value = null
     await loadTree()
   } catch (error) {
-    ElMessage.error(error?.message || '删除区域失败')
+    const msg = error?.response?.data?.msg || error?.message || '删除区域失败'
+    if (msg.includes('设备')) {
+      await ElMessageBox.alert(msg, '无法删除', { confirmButtonText: '知道了', type: 'warning' })
+    } else {
+      ElMessage.error(msg)
+    }
   }
 }
 
