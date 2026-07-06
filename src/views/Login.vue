@@ -108,7 +108,7 @@ const MOCK_PERMISSIONS = [
   'user', 'user:read', 'user:create', 'user:update', 'user:delete',
   'permission', 'permission:read', 'permission:create', 'permission:update', 'permission:delete',
   'menu', 'menu:read', 'menu:create', 'menu:update', 'menu:delete',
-  'role', 'role:assign'
+  'role', 'role:read', 'role:create', 'role:update', 'role:delete', 'role:assign'
 ]
 
 const MOCK_MENUS = [

@@ -5,12 +5,20 @@
  * POST /api/auth/login   → 登录，返回 { token, username, roleCode }
  * GET  /api/auth/me      → 获取当前用户信息 / 校验 Token
  */
+import { shallowRef } from 'vue'
 import request from './request.js'
 
 const TOKEN_KEY       = 'smart_light_token'
 const USER_KEY        = 'smart_light_user'
 const PERMISSIONS_KEY = 'smart_light_permissions'
 const MENUS_KEY       = 'smart_light_menus'
+
+// 响应式权限版本计数器 —— 每次 permissions 变更时递增，
+// useUserInfo 中的 computed 依赖此值，从而触发组件重新渲染
+const _permVersion = shallowRef(0)
+export function getPermVersionRef() {
+  return _permVersion
+}
 
 // ────────────────────────── 登录 / 登出 ──────────────────────────────────
 
@@ -54,6 +62,7 @@ export function saveAuth(token, userInfo, remember = false) {
 export function savePermissions(permissions, persist = false) {
   const storage = persist ? localStorage : sessionStorage
   storage.setItem(PERMISSIONS_KEY, JSON.stringify(permissions || []))
+  _permVersion.value++  // 递增版本号，Vue  reactivity 自动通知所有使用方
 }
 
 /**

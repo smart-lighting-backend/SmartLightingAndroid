@@ -180,9 +180,19 @@ router.beforeEach(async (to, from) => {
         saveMenus(menus || [], inLocal)
       }
       lastRefreshTime = Date.now()
-    } catch {
-      clearAuth()
-      return { path: '/login', query: { redirect: to.fullPath } }
+    } catch (refreshErr) {
+      // 网络不可用或服务器错误 → 静默使用缓存（与 Login.vue Mock 降级逻辑一致）
+      const httpStatus   = refreshErr?.response?.status
+      const isNetworkErr = !refreshErr?.response && !refreshErr?.bizCode
+      const isServerErr  = httpStatus != null && httpStatus >= 500
+      if (isNetworkErr || isServerErr) {
+        console.warn('[Router] 刷新权限失败，使用缓存:', refreshErr?.message)
+        lastRefreshTime = Date.now()  // 避免不断的重试
+      } else {
+        // 401 或业务错误 → 清除登录状态
+        clearAuth()
+        return { path: '/login', query: { redirect: to.fullPath } }
+      }
     }
   }
 
