@@ -615,7 +615,37 @@ async function saveStrategy() {
 .ac-icon { width: 15px; height: 15px; flex-shrink: 0; color: rgba(140,190,220,0.6); }
 
 /* Save */
-.footer-save { display: flex; justify-content: center; margin-top: 24px; }
+.footer-save {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+.test-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  min-width: 112px;
+  padding: 14px 28px;
+  background: rgba(255, 255, 255, 0.86) !important;
+  border: 1px solid rgba(0, 141, 230, 0.2) !important;
+  border-radius: 10px !important;
+  color: #006fc2 !important;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s;
+  box-shadow: 0 10px 26px rgba(0, 106, 170, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
+}
+.test-mode-btn:hover {
+  transform: translateY(-2px);
+  background: #ffffff !important;
+  border-color: rgba(0, 145, 215, 0.32) !important;
+  color: #008de6 !important;
+  box-shadow: 0 14px 34px rgba(0, 126, 206, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+}
 .save-btn {
   display: flex; align-items: center; gap: 8px;
   padding: 14px 40px;
