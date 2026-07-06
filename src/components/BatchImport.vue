@@ -44,8 +44,8 @@ function onFileChange(e) {
   const f = e.target.files?.[0]
   if (!f) return
   const ext = f.name.split('.').pop().toLowerCase()
-  if (!['xlsx', 'xls', 'csv'].includes(ext)) {
-    ElMessage.error('仅支持 .xlsx / .xls / .csv 格式')
+  if (ext !== 'csv') {
+    ElMessage.error('当前环境暂仅支持 .csv 格式，请将 Excel 另存为 CSV 后导入')
     return
   }
   file.value = f
@@ -225,8 +225,8 @@ onUnmounted(() => {
         <div class="bi-upload-zone" @dragover="handleDragOver" @drop="handleDrop" @click="fileInputRef?.click()">
           <UploadFilled style="font-size:36px;color:rgba(77,208,225,0.5)" />
           <p>点击或拖拽上传 Excel / CSV 文件</p>
-          <span class="bi-hint">支持 .xlsx .xls .csv</span>
-          <input ref="fileInputRef" type="file" accept=".xlsx,.xls,.csv" style="display:none" @change="onFileChange" />
+          <span class="bi-hint">支持 .csv，Excel 可另存为 CSV 后导入</span>
+          <input ref="fileInputRef" type="file" accept=".csv" style="display:none" @change="onFileChange" />
         </div>
         <div class="bi-template">
           <span>还没有模板？</span>

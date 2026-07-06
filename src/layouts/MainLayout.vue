@@ -92,17 +92,26 @@ const navItems = computed(() => {
 })
 
 const activeNav = computed(() => {
-  const p = route.path
-  for (const item of flattenMenu(navItems.value)) {
-    if (p === item.path) return item.id
-    if (item.path && p.startsWith(item.path + '/')) return item.id
-    if (item.path && item.path !== '/' && p.startsWith(item.path) && item.children?.length === 0) return item.id
-  }
-  for (const item of flattenMenu(navItems.value)) {
-    if (item.path && item.path !== '/' && p.startsWith(item.path)) return item.id
-  }
-  return null
+  const currentPath = normalizePath(route.path)
+  const items = flattenMenu(navItems.value)
+
+  const exactMatch = items.find(item => normalizePath(item.path) === currentPath)
+  if (exactMatch) return exactMatch.id
+
+  const prefixMatch = items
+    .filter(item => {
+      const itemPath = normalizePath(item.path)
+      return itemPath && itemPath !== '/' && currentPath.startsWith(`${itemPath}/`)
+    })
+    .sort((a, b) => normalizePath(b.path).length - normalizePath(a.path).length)[0]
+
+  return prefixMatch?.id ?? null
 })
+
+function normalizePath(path) {
+  if (!path) return ''
+  return path.length > 1 ? path.replace(/\/+$/, '') : path
+}
 
 function flattenMenu(items) {
   const result = []
@@ -116,13 +125,17 @@ function flattenMenu(items) {
   return result
 }
 
+function hasActiveDescendant(item) {
+  return item.children?.some(child => activeNav.value === child.id || hasActiveDescendant(child)) ?? false
+}
+
+function isMenuActive(item) {
+  return activeNav.value === item.id || hasActiveDescendant(item)
+}
+
 function isExpanded(item) {
   if (expandedIds.value.has(item.id)) return true
-  if (activeNav.value === item.id) return true
-  if (item.children && item.children.length > 0) {
-    return item.children.some(c => activeNav.value === c.id)
-  }
-  return false
+  return isMenuActive(item)
 }
 
 function renderIcon(iconName) {
@@ -247,7 +260,7 @@ watch(() => route.path, () => {
             <div v-if="item.children && item.children.length > 0" class="nav-group">
               <div
                 class="nav-item nav-parent"
-                :class="{ active: isExpanded(item) }"
+                :class="{ active: isMenuActive(item), expanded: isExpanded(item) }"
                 @click="navigateTo(item)"
               >
                 <span v-if="renderIcon(item.icon)" class="nav-icon" v-html="renderIcon(item.icon)"></span>
@@ -323,9 +336,6 @@ watch(() => route.path, () => {
             <span class="badge-dot" v-if="alarmCount > 0">{{ alarmCount }}</span>
           </button>
 
-          <button class="icon-btn avatar-btn" @click="showUserMenu = !showUserMenu">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          </button>
         </div>
       </header>
 

@@ -212,7 +212,8 @@ const typeTag = (type) => {
           <ElSelect
             v-model="selectedRoleId"
             placeholder="请选择要分配权限的角色"
-            style="width: 280px"
+            class="role-select"
+            popper-class="role-select-popper"
             clearable
             filterable
           >
@@ -222,15 +223,15 @@ const typeTag = (type) => {
               :label="`${role.name}  (${role.roleCode})`"
               :value="role.id"
             >
-              <span style="float:left">{{ role.name }}</span>
-              <span style="float:right;color:var(--el-text-color-secondary);font-size:12px">
-                {{ role.roleCode }}
-              </span>
+              <div class="role-option">
+                <span class="role-option-name">{{ role.name }}</span>
+                <code class="role-option-code">{{ role.roleCode }}</code>
+              </div>
             </ElOption>
           </ElSelect>
 
           <template v-if="selectedRoleId">
-            <ElTag size="small" type="primary" effect="dark" round>
+            <ElTag class="assign-count-tag" size="small" type="primary" round>
               已分配 {{ checkedCount }} 个权限
             </ElTag>
           </template>
@@ -295,12 +296,14 @@ const typeTag = (type) => {
 </template>
 
 <style scoped>
-/* ═══════════════ 整体 ═══════════════ */
 .permission-container {
   padding: 24px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 40%, #16213e 100%);
-  color: #e0e0e0;
+  background:
+    radial-gradient(circle at 8% 8%, rgba(0, 141, 230, 0.12), transparent 28%),
+    radial-gradient(circle at 92% 12%, rgba(56, 189, 248, 0.10), transparent 30%),
+    linear-gradient(135deg, #f7fbff 0%, #eef7ff 46%, #ffffff 100%);
+  color: #1d3148;
 }
 
 .page-header {
@@ -313,16 +316,15 @@ const typeTag = (type) => {
 }
 .page-title {
   font-size: 22px;
-  font-weight: 700;
-  color: #e0f4ff;
+  font-weight: 800;
+  color: #0d1b2d;
   margin: 0;
 }
 .page-subtitle {
   font-size: 13px;
-  color: rgba(160, 200, 230, 0.5);
+  color: #40566f;
 }
 
-/* ═══════════════ 角色权限分配 ═══════════════ */
 .assign-panel {
   padding: 4px 0;
 }
@@ -333,10 +335,13 @@ const typeTag = (type) => {
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 16px;
-  padding: 12px 16px;
-  background: rgba(15, 20, 38, 0.4);
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 14px 16px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(242, 249, 255, 0.92)),
+    linear-gradient(90deg, rgba(0, 141, 230, 0.10), transparent);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 141, 230, 0.18);
+  box-shadow: 0 14px 32px rgba(14, 70, 120, 0.10);
 }
 .assign-toolbar-left, .assign-toolbar-right {
   display: flex;
@@ -346,67 +351,216 @@ const typeTag = (type) => {
 }
 .selector-label {
   font-weight: 600;
-  color: #b0cde0;
+  color: #1d3148;
   white-space: nowrap;
   font-size: 14px;
+}
+.role-select {
+  width: 320px;
+  max-width: 100%;
+}
+.assign-count-tag {
+  border-color: rgba(0, 141, 230, 0.18);
+  background: rgba(0, 141, 230, 0.10);
+  color: #006fc2;
+  font-weight: 700;
 }
 
 .assign-tree-wrapper {
   padding: 16px;
-  background: rgba(15, 20, 35, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(0, 141, 230, 0.16);
+  border-radius: 8px;
   min-height: 360px;
+  box-shadow: 0 16px 38px rgba(14, 70, 120, 0.10);
 }
 .assign-tree-scroll {
   max-height: 500px;
   overflow-y: auto;
+  padding-right: 4px;
 }
 
 .assign-tree-node {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
 }
 .assign-node-label {
-  font-weight: 500;
-  color: #d0e0f0;
+  font-weight: 600;
+  color: #1d3148;
+  white-space: nowrap;
 }
 .is-module .assign-node-label {
-  font-weight: 600;
-  color: #e0f0ff;
+  font-weight: 800;
+  color: #0d1b2d;
 }
 .is-module {
   padding: 2px 0;
 }
 .assign-node-code {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
+  color: #60748a;
   font-family: monospace;
   margin-left: auto;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: rgba(232, 246, 255, 0.70);
+  border: 1px solid rgba(0, 141, 230, 0.10);
+  border-radius: 4px;
+  padding: 1px 6px;
 }
 
 .assign-placeholder {
   padding: 80px 0;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px dashed rgba(0, 141, 230, 0.22);
+  border-radius: 8px;
 }
 
-/* ─── 标签 ─────────────────────── */
 .tree-tag {
   font-size: 10px;
-  padding: 1px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
   line-height: 1.5;
 }
 .tag-module {
-  background: rgba(64, 158, 255, 0.15);
-  color: #409eff;
-  border: 1px solid rgba(64, 158, 255, 0.25);
+  background: rgba(0, 141, 230, 0.10);
+  color: #006fc2;
+  border: 1px solid rgba(0, 141, 230, 0.22);
 }
 .tag-action {
-  background: rgba(103, 194, 58, 0.12);
-  color: #67c23a;
-  border: 1px solid rgba(103, 194, 58, 0.2);
+  background: rgba(16, 185, 129, 0.10);
+  color: #087f5b;
+  border: 1px solid rgba(16, 185, 129, 0.22);
+}
+
+:deep(.el-select__wrapper),
+:deep(.el-input__wrapper) {
+  min-height: 34px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 141, 230, 0.18);
+  box-shadow: 0 0 0 1px rgba(0, 141, 230, 0.04) inset;
+}
+:deep(.el-select__wrapper.is-focused),
+:deep(.el-input__wrapper.is-focus) {
+  border-color: rgba(0, 141, 230, 0.46);
+  box-shadow: 0 0 0 3px rgba(0, 141, 230, 0.12);
+}
+:deep(.el-select__selected-item),
+:deep(.el-input__inner) {
+  color: #1d3148;
+  font-weight: 600;
+}
+:deep(.el-select__placeholder),
+:deep(.el-input__inner::placeholder) {
+  color: #6f8194;
+  font-weight: 500;
+}
+:deep(.el-button:not(.el-button--primary)) {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(0, 141, 230, 0.18);
+  color: #1d3148;
+}
+:deep(.el-button:not(.el-button--primary):hover) {
+  background: rgba(232, 246, 255, 0.95);
+  border-color: rgba(0, 141, 230, 0.34);
+  color: #006fc2;
+}
+:deep(.el-button--primary) {
+  background: linear-gradient(135deg, #008de6, #006fc2);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(0, 111, 194, 0.24);
+}
+:deep(.el-tree) {
+  background: transparent;
+  color: #1d3148;
+  --el-tree-node-hover-bg-color: rgba(0, 141, 230, 0.07);
+}
+:deep(.el-tree-node__content) {
+  height: 36px;
+  border-radius: 6px;
+  margin: 2px 0;
+  padding-right: 8px;
+  transition: background-color 0.16s ease, box-shadow 0.16s ease;
+}
+:deep(.el-tree-node__content:hover) {
+  background: rgba(0, 141, 230, 0.07);
+}
+:deep(.el-tree-node.is-current > .el-tree-node__content) {
+  background: rgba(0, 141, 230, 0.12);
+  box-shadow: inset 3px 0 0 #008de6;
+}
+:deep(.el-checkbox__inner) {
+  border-color: rgba(0, 141, 230, 0.36);
+}
+:deep(.el-checkbox__input.is-checked .el-checkbox__inner),
+:deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
+  background-color: #008de6;
+  border-color: #008de6;
+}
+:deep(.el-empty__description p) {
+  color: #40566f;
+  font-weight: 600;
+}
+
+:global(.role-select-popper) {
+  border: 1px solid rgba(0, 141, 230, 0.18) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 18px 42px rgba(14, 70, 120, 0.16) !important;
+}
+:global(.role-select-popper .el-select-dropdown__wrap) {
+  max-height: 260px;
+}
+:global(.role-select-popper .el-select-dropdown__list) {
+  padding: 6px;
+}
+:global(.role-select-popper .el-select-dropdown__item) {
+  height: 38px;
+  line-height: 38px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: #1d3148;
+}
+:global(.role-select-popper .el-select-dropdown__item.is-hovering),
+:global(.role-select-popper .el-select-dropdown__item.hover) {
+  background: rgba(0, 141, 230, 0.08);
+}
+:global(.role-select-popper .el-select-dropdown__item.is-selected) {
+  background: rgba(0, 141, 230, 0.12);
+  color: #006fc2;
+  font-weight: 800;
+}
+:global(.role-select-popper .role-option) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+}
+:global(.role-select-popper .role-option-name) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:global(.role-select-popper .role-option-code) {
+  flex-shrink: 0;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #60748a;
+  font-size: 12px;
+  line-height: 20px;
+  background: rgba(232, 246, 255, 0.90);
+  border: 1px solid rgba(0, 141, 230, 0.12);
+  border-radius: 4px;
+  padding: 1px 6px;
 }
 </style>

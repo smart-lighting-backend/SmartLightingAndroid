@@ -340,34 +340,34 @@ onMounted(() => {
 
 <style scoped>
 .user-list-container {
-  padding: 24px;
+  padding: 24px 28px;
   min-height: 100vh;
-  background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 40%, #16213e 100%);
-  color: #e0e0e0;
+  background: transparent !important;
+  color: #1d3148;
 }
 
 .search-bar {
-  background-color: rgba(25, 25, 45, 0.6);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: blur(16px) saturate(1.12);
+  border: 1px solid rgba(0, 141, 230, 0.16) !important;
   padding: 20px;
-  border-radius: 12px;
+  border-radius: 8px;
   margin-bottom: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 18px 40px rgba(30, 86, 130, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
 }
 
 .user-content {
-  background-color: rgba(25, 25, 45, 0.6);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.94) !important;
+  backdrop-filter: blur(16px) saturate(1.12);
+  border: 1px solid rgba(0, 141, 230, 0.16) !important;
+  border-radius: 8px;
   padding: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 18px 40px rgba(30, 86, 130, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
 }
 
 .form-hint {
   font-size: 12px;
-  color: #909399;
+  color: #40566f;
   margin-top: 4px;
 }
 
@@ -379,49 +379,91 @@ onMounted(() => {
 
 .time-cell {
   font-family: monospace;
-  color: #a0a5b0;
+  color: #40566f;
   letter-spacing: 0.5px;
+  font-weight: 600;
 }
 
-/* Deep styling for Element Plus to match dark theme */
+/* Deep styling for Element Plus to match the light sci-fi theme */
 :deep(.el-form-item__label) {
-  color: #c0c4cc;
+  color: #1d3148 !important;
+  font-weight: 700;
 }
 
 :deep(.el-input__wrapper), :deep(.el-select__wrapper) {
-  background-color: rgba(15, 15, 30, 0.6);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(0, 141, 230, 0.18) !important;
+  box-shadow: 0 0 0 1px rgba(0, 141, 230, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
 }
 
-:deep(.el-input__inner) {
-  color: #e0e0e0;
+:deep(.el-input__inner),
+:deep(.el-select__selected-item),
+:deep(.el-select__placeholder) {
+  color: #0d1b2d !important;
+  font-weight: 600;
+}
+
+:deep(.el-input__inner::placeholder) {
+  color: #6f8194 !important;
 }
 
 :deep(.el-table) {
-  background-color: transparent;
-  --el-table-border-color: rgba(255, 255, 255, 0.08);
-  --el-table-header-bg-color: rgba(30, 30, 50, 0.8);
-  --el-table-header-text-color: #e0e0e0;
-  --el-table-text-color: #c0c4cc;
-  --el-table-row-hover-bg-color: rgba(255, 255, 255, 0.05);
+  background: transparent !important;
+  --el-table-border-color: rgba(16, 126, 196, 0.12);
+  --el-table-header-bg-color: rgba(232, 246, 255, 0.82);
+  --el-table-header-text-color: #0d1b2d;
+  --el-table-text-color: #1d3148;
+  --el-table-row-hover-bg-color: rgba(0, 141, 230, 0.06);
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;
 }
 
 :deep(.el-table th.el-table__cell) {
-  background-color: rgba(30, 30, 50, 0.8) !important;
-  font-weight: 600;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(236, 248, 255, 0.95), rgba(222, 241, 255, 0.78)) !important;
+  color: #0d1b2d !important;
+  font-weight: 800;
+  border-bottom: 1px solid rgba(16, 126, 196, 0.12);
 }
 
 :deep(.el-table td.el-table__cell) {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.72) !important;
+  color: #1d3148 !important;
+  border-bottom: 1px solid rgba(16, 126, 196, 0.1);
+  font-weight: 500;
+}
+
+:deep(.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell) {
+  background: rgba(244, 250, 255, 0.82) !important;
+}
+
+:deep(.el-table__body tr:hover > td.el-table__cell) {
+  background: rgba(0, 141, 230, 0.07) !important;
+}
+
+:deep(.el-table .cell) {
+  color: inherit !important;
+}
+
+:deep(.el-tag) {
+  font-weight: 700;
+}
+
+:deep(.el-button.is-link) {
+  font-weight: 700;
+}
+
+:deep(.el-button.is-link.el-button--primary) {
+  color: #006fc2 !important;
+}
+
+:deep(.el-button.is-link.el-button--danger) {
+  color: #c62f36 !important;
 }
 
 :deep(.el-pagination) {
-  --el-pagination-bg-color: rgba(30, 30, 50, 0.6);
-  --el-pagination-text-color: #e0e0e0;
-  --el-pagination-button-color: #e0e0e0;
-  --el-pagination-button-disabled-bg-color: rgba(20, 20, 35, 0.6);
+  --el-pagination-bg-color: rgba(255, 255, 255, 0.82);
+  --el-pagination-text-color: #1d3148;
+  --el-pagination-button-color: #1d3148;
+  --el-pagination-button-disabled-bg-color: rgba(232, 246, 255, 0.62);
 }
 </style>

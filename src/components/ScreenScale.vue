@@ -77,16 +77,16 @@ onBeforeUnmount(() => {
 .screen-scale-wrapper {
   width: 100%;
   height: 100%;
-  overflow: hidden auto;
+  overflow: hidden;
   display: flex;
   justify-content: center;
   background: #060e1f;
+  overscroll-behavior: none;
 }
 
 .screen-scale-content {
   flex: 0 0 auto;
   transform-origin: top center;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
 }
 </style>
