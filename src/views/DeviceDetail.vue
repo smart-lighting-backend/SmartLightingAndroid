@@ -10,6 +10,10 @@ import { fetchLatestTelemetry, fetchTelemetryHistory } from '../api/telemetry.js
 import { sendControlCommand, getControlHistory } from '../api/control.js';
 import { useUserInfo } from '../composables/useUserInfo.js';
 import { useAutoRefresh } from '../composables/useAutoRefresh.js';
+import {
+  isManualModeActive,
+  resolveManualControlState,
+} from '../utils/manualControlState.js';
 const { hasPerm } = useUserInfo();
 const route = useRoute();
 const router = useRouter();
@@ -130,27 +134,29 @@ const mapDeviceInfo = (raw) => {
     latitude: lat,
     longitude: lng,
     latestData: raw.latestData,
+    manualMode: raw.manualMode || false,
+    manualExpireAt: raw.manualExpireAt || null,
   }
 }
 
-function parseLatestData(raw) {
-  if (!raw) return null
-  try { return typeof raw === 'string' ? JSON.parse(raw) : raw } catch { return null }
+function applyResolvedControlState(state) {
+  if (!state) return
+  lightStatus.value = state.power
+  brightness.value = state.brightness
 }
 
-function applyControlState(data) {
-  if (!data || !data.action) return
-  if (data.action === 'OFF') {
-    lightStatus.value = false
-    brightness.value = data.brightness || 0
-  } else if (data.action === 'ON') {
-    lightStatus.value = true
-    brightness.value = data.brightness || 100
-  } else if (data.action.startsWith && data.action.startsWith('DIMMING')) {
-    lightStatus.value = true
-    const m = data.action.match(/DIMMING\((\d+)\)/)
-    brightness.value = m ? parseInt(m[1]) : (data.brightness || 80)
+async function fetchLatestControlRecord() {
+  try {
+    const res = await getControlHistory(deviceId.value, 1, 1)
+    return res?.data?.list?.[0] || null
+  } catch {
+    return null
   }
+}
+
+async function applyDeviceControlState(device) {
+  const latestRecord = isManualModeActive(device) ? await fetchLatestControlRecord() : null
+  applyResolvedControlState(resolveManualControlState(device, latestRecord, 80))
 }
 
 const loadHealth = async () => {
@@ -162,14 +168,15 @@ const loadHealth = async () => {
 
 const loadDeviceInfo = async () => {
  loading.value = true;
+ try {
  const res = await fetchDeviceDetail(deviceId.value);
  if (res.code === 200) {
    deviceInfo.value = mapDeviceInfo(res.data);
-   // 从 latestData 恢复控制状态
-   const state = parseLatestData(res.data?.latestData);
-   applyControlState(state);
+   await applyDeviceControlState(deviceInfo.value);
  }
+ } finally {
  loading.value = false;
+ }
 };
 const loadLatestTelemetry = async () => {
  loading.value = true;
@@ -587,9 +594,8 @@ const handleControlCommand = async (command) => {
  // 更新灯光状态反馈
  if (command === 'turn_on') lightStatus.value = true;
  else if (command === 'turn_off') lightStatus.value = false;
- loadControlHistory();
- // 重新读取设备状态，同步 latestData 中的控制状态
- loadDeviceInfo();
+ await loadControlHistory();
+ await loadDeviceInfo();
  } else {
  ElMessage.error(response.message);
  }
@@ -610,32 +616,9 @@ const loadControlHistory = async () => {
  console.error('加载控制历史失败');
  }
 };
-async function initControlState() {
-  // 优先从 latestData 读取控制状态
-  const state = parseLatestData(deviceInfo.value?.latestData);
-  if (state && state.action) {
-    applyControlState(state);
-    return;
-  }
-  // 兜底：从控制历史最后一条指令推断
-  try {
-    const res = await getControlHistory(deviceId.value, 1, 1);
-    if (res.code === 200 && res.data.list.length > 0) {
-      const last = res.data.list[0];
-      if (last.command === 'turn_on') lightStatus.value = true;
-      else if (last.command === 'turn_off') lightStatus.value = false;
-      if (last.command === 'dim' && last.params?.brightness != null) {
-        lightStatus.value = true;
-        brightness.value = last.params.brightness;
-      }
-    }
-  } catch { /* ignore */ }
-}
-
 onMounted(async () => {
  deviceId.value = route.params.id;
  await loadDeviceInfo();
- await initControlState();
  loadHealth();
  loadLatestTelemetry();
  loadHistoryData();
@@ -653,8 +636,7 @@ onMounted(async () => {
      ])
      if (res1.code === 200) {
        deviceInfo.value = mapDeviceInfo(res1.data)
-       const state = parseLatestData(res1.data?.latestData)
-       applyControlState(state)
+       await applyDeviceControlState(deviceInfo.value)
      }
      if (res2.code === 200) {
        latestTelemetry.value = res2.data

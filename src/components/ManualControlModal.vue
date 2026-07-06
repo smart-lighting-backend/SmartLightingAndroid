@@ -1,7 +1,12 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
 import { fetchDeviceNodes, controlDevice, unlockDevice } from '../api/devices.js'
+import { getControlHistory } from '../api/control.js'
 import { useAutoRefresh } from '../composables/useAutoRefresh.js'
+import {
+  isManualModeActive,
+  resolveManualControlState,
+} from '../utils/manualControlState.js'
 
 const emit = defineEmits(['close'])
 
@@ -16,31 +21,35 @@ const logs = ref([
 ])
 const sending = ref(false)
 const logsContainer = ref(null)
+let stateRequestSeq = 0
 
-function parseLatestData(raw) {
-  if (!raw) return null
+function nodeDeviceId(node) {
+  return node?.deviceId || node?.id
+}
+
+function applyResolvedState(state) {
+  if (!state) return
+  power.value = state.power
+  brightness.value = state.brightness
+}
+
+async function fetchLatestControlRecord(node) {
+  const id = nodeDeviceId(node)
+  if (!id) return null
   try {
-    return typeof raw === 'string' ? JSON.parse(raw) : raw
+    const res = await getControlHistory(id, 1, 1)
+    return res?.data?.list?.[0] || null
   } catch {
     return null
   }
 }
 
-function applyDeviceState(node) {
-  const data = parseLatestData(node?.latestData)
-  if (data && data.action) {
-    if (data.action === 'OFF') {
-      power.value = false
-      brightness.value = data.brightness || 0
-    } else if (data.action === 'ON') {
-      power.value = true
-      brightness.value = data.brightness || 100
-    } else if (data.action && data.action.startsWith('DIMMING')) {
-      power.value = true
-      const match = data.action.match(/DIMMING\((\d+)\)/)
-      brightness.value = match ? parseInt(match[1]) : (data.brightness || 75)
-    }
-  }
+async function applyDeviceState(node) {
+  const seq = ++stateRequestSeq
+  const latestRecord = isManualModeActive(node) ? await fetchLatestControlRecord(node) : null
+  const state = resolveManualControlState(node, latestRecord, 75)
+  if (seq !== stateRequestSeq) return
+  applyResolvedState(state)
 }
 
 onMounted(async () => {
@@ -49,7 +58,7 @@ onMounted(async () => {
   nodes.value = raw
   if (nodes.value.length) {
     selectedNode.value = nodes.value[0]
-    applyDeviceState(nodes.value[0])
+    await applyDeviceState(nodes.value[0])
   }
   // 设备状态每 20 秒自动同步
   useAutoRefresh(async () => {
@@ -57,8 +66,11 @@ onMounted(async () => {
     const list = Array.isArray(r) ? r : (r.data || [])
     nodes.value = list
     if (selectedNode.value) {
-      const updated = list.find(n => n.deviceId === selectedNode.value.deviceId || n.id === selectedNode.value.id)
-      if (updated) applyDeviceState(updated)
+      const updated = list.find(n => nodeDeviceId(n) === currentDeviceId())
+      if (updated) {
+        selectedNode.value = updated
+        await applyDeviceState(updated)
+      }
     }
   }, { interval: 20000, isSensitive: () => sending.value })
 })
@@ -85,7 +97,7 @@ function addLog(text, type = '') {
 
 // 获取当前节点的 deviceId（后端接口使用业务编号）
 function currentDeviceId() {
-  return selectedNode.value?.deviceId || selectedNode.value?.id
+  return nodeDeviceId(selectedNode.value)
 }
 
 function closeModal() {
@@ -135,7 +147,7 @@ async function syncStatus() {
     const updated = raw.find(n => (n.deviceId || n.id) === currentDeviceId())
     if (updated) {
       selectedNode.value = updated
-      applyDeviceState(updated)
+      await applyDeviceState(updated)
       addLog(`✅ 同步完成：电源 ${power.value ? 'ON' : 'OFF'}，亮度 ${brightness.value}%`)
     } else {
       addLog('⚠️ 未找到该设备的最新状态')
@@ -146,9 +158,7 @@ async function syncStatus() {
 }
 
 const isManualMode = computed(() => {
-  if (!selectedNode.value?.manualMode) return false
-  if (!selectedNode.value?.manualExpireAt) return false
-  return new Date(selectedNode.value.manualExpireAt) > new Date()
+  return isManualModeActive(selectedNode.value)
 })
 
 const manualExpireText = computed(() => {
