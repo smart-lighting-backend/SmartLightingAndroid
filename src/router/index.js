@@ -160,7 +160,6 @@ router.beforeEach(async (to, from) => {
   const token = getToken()
 
   if (to.meta.public) {
-    if (token && to.path === '/login') return '/dashboard'
     return true
   }
 
@@ -168,8 +167,10 @@ router.beforeEach(async (to, from) => {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
 
+  const hasCachedUser = Boolean(getUserInfo())
+
   // 定期从 /me 刷新权限和菜单（30 秒间隔，确保角色权限变更后及时生效）
-  if (Date.now() - lastRefreshTime > REFRESH_INTERVAL) {
+  if (!hasCachedUser || Date.now() - lastRefreshTime > REFRESH_INTERVAL) {
     try {
       const res = await fetchCurrentUser()
       if (res?.data) {
@@ -186,6 +187,10 @@ router.beforeEach(async (to, from) => {
       const isNetworkErr = !refreshErr?.response && !refreshErr?.bizCode
       const isServerErr  = httpStatus != null && httpStatus >= 500
       if (isNetworkErr || isServerErr) {
+        if (!hasCachedUser) {
+          clearAuth()
+          return { path: '/login', query: { redirect: to.fullPath } }
+        }
         console.warn('[Router] 刷新权限失败，使用缓存:', refreshErr?.message)
         lastRefreshTime = Date.now()  // 避免不断的重试
       } else {
