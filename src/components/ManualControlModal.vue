@@ -46,7 +46,7 @@ async function fetchLatestControlRecord(node) {
 
 async function applyDeviceState(node) {
   const seq = ++stateRequestSeq
-  const latestRecord = isManualModeActive(node) ? await fetchLatestControlRecord(node) : null
+  const latestRecord = await fetchLatestControlRecord(node)
   const state = resolveManualControlState(node, latestRecord, 75)
   if (seq !== stateRequestSeq) return
   applyResolvedState(state)

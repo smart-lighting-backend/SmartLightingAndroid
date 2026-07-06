@@ -25,6 +25,7 @@ const searching = ref(false)
 
 let map = null
 let pinMarker = null       // 红色大头针（新选点）
+let origMarker = null      // 粉色圆点（原始位置）
 let deviceMarkers = []     // 已有设备标记
 let geocoder = null
 
@@ -60,6 +61,20 @@ function placePin(lng, lat) {
     })
     pinMarker.setMap(map)
   }
+}
+
+// 原始位置标记——粉色圆点，编辑模式下显示设备原来在哪
+function placeOrigMarker(lng, lat) {
+  if (!map || !AMapRef.value) return
+  if (origMarker) origMarker.setMap(null)
+  const html = `<div title="原始位置" style="width:16px;height:16px;background:#ff69b4;border:2.5px solid #fff;border-radius:50%;box-shadow:0 0 12px rgba(255,105,180,0.6);"></div>`
+  origMarker = new AMapRef.value.Marker({
+    position: [lng, lat],
+    content: html,
+    anchor: "center",
+    zIndex: 250,
+  })
+  origMarker.setMap(map)
 }
 
 function onMapClick(e) {
@@ -163,6 +178,7 @@ function initMap() {
   const iLng = parseFloat(props.modelValue.lng)
   const iLat = parseFloat(props.modelValue.lat)
   if (!isNaN(iLng) && !isNaN(iLat)) {
+    placeOrigMarker(iLng, iLat)
     updateCoords(iLng, iLat)
     map.setZoomAndCenter(17, [iLng, iLat])
   }
@@ -184,6 +200,7 @@ watch(() => props.visible, (v) => {
 onUnmounted(() => {
   deviceMarkers.forEach(m => m.setMap(null))
   deviceMarkers = []
+  if (origMarker) { origMarker.setMap(null); origMarker = null }
   if (pinMarker) { pinMarker.setMap(null); pinMarker = null }
   if (map) { map.destroy(); map = null }
 })
