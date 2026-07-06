@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useAutoRefresh } from '../composables/useAutoRefresh.js'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, ElCascader } from 'element-plus'
-import { Plus, Edit, Delete, Location, Download, Upload } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Location, Download, Upload, Connection, CircleClose } from '@element-plus/icons-vue'
 import { createDevice, deleteDevice, fetchDeviceList, updateDevice, batchDeviceArea, STATUS_MAP, STATUS_QUERY_MAP } from '../api/devices.js'
 import { fetchAreaTree } from '../api/area.js'
 import { useUserInfo } from '../composables/useUserInfo.js'
@@ -41,6 +41,11 @@ const locationPickerVisible = ref(false)
 const locationCoords = ref({ lng: '', lat: '' })
 const batchImportVisible = ref(false)
 const existingDeviceIds = computed(() => devices.value.map(d => d.deviceId))
+const areaBindingDialogVisible = ref(false)
+const areaBindingDevice = ref(null)
+const areaBindingTargetId = ref(null)
+const areaBindingSubmitting = ref(false)
+const areaUnbindingDeviceId = ref('')
 
 function handleExport(area) {
   const list = area
@@ -132,7 +137,7 @@ onMounted(() => {
     } catch {}
   }, {
     interval: 60000,
-    isSensitive: () => createDialogVisible.value || deletingDeviceId.value || togglingDeviceId.value,
+    isSensitive: () => createDialogVisible.value || deletingDeviceId.value || togglingDeviceId.value || areaBindingDialogVisible.value || areaUnbindingDeviceId.value,
   })
 })
 
@@ -162,6 +167,14 @@ function displayStatus(device) {
 
 function getStatusMeta(device) {
   return STATUS_MAP[displayStatus(device)] || { label: '未知', cls: 'offline' }
+}
+
+function deviceHasArea(device) {
+  return (device?.areaId !== undefined && device?.areaId !== null) || Boolean(device?.area)
+}
+
+function displayAreaName(device) {
+  return device?.area || (deviceHasArea(device) ? `区域ID: ${device.areaId}` : '未绑定区域')
 }
 
 function openCreateDialog() {
@@ -355,12 +368,116 @@ async function loadAreaTree() {
     areaTreeOptions.value = []
   }
 }
-function mapAreaTreeToOptions(tree) {
+function mapAreaTreeToOptions(tree, parentPath = []) {
   return (tree || []).map(node => ({
     value: node.id,
     label: node.name,
-    children: node.children?.length ? mapAreaTreeToOptions(node.children) : undefined,
+    areaPath: [...parentPath, node.name].filter(Boolean).join('-'),
+    children: node.children?.length ? mapAreaTreeToOptions(node.children, [...parentPath, node.name]) : undefined,
   }))
+}
+
+async function ensureAreaTreeLoaded() {
+  if (!areaTreeOptions.value.length) {
+    await loadAreaTree()
+  }
+}
+
+function findAreaOptionById(options, areaId) {
+  for (const option of options || []) {
+    if (String(option.value) === String(areaId)) return option
+    const child = findAreaOptionById(option.children, areaId)
+    if (child) return child
+  }
+  return null
+}
+
+function getAreaPathById(areaId) {
+  return findAreaOptionById(areaTreeOptions.value, areaId)?.areaPath || ''
+}
+
+function getDeviceDbId(device) {
+  if (device?.id === undefined || device?.id === null) return null
+  return device.id
+}
+
+async function openBindAreaDialog(device) {
+  areaBindingDevice.value = device
+  areaBindingTargetId.value = device?.areaId ?? null
+  areaBindingDialogVisible.value = true
+  await ensureAreaTreeLoaded()
+}
+
+function resetAreaBindingDialog() {
+  areaBindingDevice.value = null
+  areaBindingTargetId.value = null
+}
+
+async function confirmBindArea() {
+  const device = areaBindingDevice.value
+  const deviceDbId = getDeviceDbId(device)
+  if (!device || deviceDbId === null) {
+    ElMessage.error('设备缺少数据库ID，无法绑定区域')
+    return
+  }
+  if (areaBindingTargetId.value === null || areaBindingTargetId.value === undefined || areaBindingTargetId.value === '') {
+    ElMessage.warning('请选择目标区域')
+    return
+  }
+
+  areaBindingSubmitting.value = true
+  try {
+    const areaName = getAreaPathById(areaBindingTargetId.value)
+    await batchDeviceArea({
+      deviceIds: [deviceDbId],
+      areaId: areaBindingTargetId.value,
+      areaName,
+    })
+    ElMessage.success(`已将「${device.name || device.deviceId}」绑定到「${areaName || '目标区域'}」`)
+    areaBindingDialogVisible.value = false
+    await loadDevices()
+  } catch (error) {
+    ElMessage.error(error?.message || '绑定区域失败')
+  } finally {
+    areaBindingSubmitting.value = false
+  }
+}
+
+async function unbindDeviceArea(device) {
+  const deviceDbId = getDeviceDbId(device)
+  if (!device || deviceDbId === null) {
+    ElMessage.error('设备缺少数据库ID，无法解绑区域')
+    return
+  }
+  if (!deviceHasArea(device)) {
+    ElMessage.info('该设备尚未绑定区域')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确认解绑设备“${device.name || device.deviceId}”当前所属区域？`,
+      '解绑区域',
+      { confirmButtonText: '确认解绑', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch {
+    return
+  }
+
+  areaUnbindingDeviceId.value = device.deviceId
+  try {
+    await batchDeviceArea({
+      deviceIds: [deviceDbId],
+      areaId: null,
+      areaName: '',
+    })
+    ElMessage.success('解绑区域成功')
+    await loadDevices()
+  } catch (error) {
+    ElMessage.error(error?.message || '解绑区域失败')
+  } finally {
+    areaUnbindingDeviceId.value = ''
+  }
 }
 
 function toggleSelectMode() {
@@ -384,17 +501,15 @@ function selectAllFiltered() {
 }
 
 /** 打开批量分配弹窗 */
-function openBatchAssign() {
-  const areaTree = areaTreeOptions.value
-  // 如果尚未加载区域树，则加载
-  if (!areaTree.length) loadAreaTree()
+async function openBatchAssign() {
+  await ensureAreaTreeLoaded()
   batchTargetAreaId.value = null
   batchDialogVisible.value = true
 }
 
 /** 确认批量分配区域 */
 async function confirmBatchAssign() {
-  if (!batchTargetAreaId.value) {
+  if (batchTargetAreaId.value === null || batchTargetAreaId.value === undefined || batchTargetAreaId.value === '') {
     ElMessage.warning('请选择目标区域')
     return
   }
@@ -406,8 +521,9 @@ async function confirmBatchAssign() {
     return
   }
   try {
-    await batchDeviceArea({ deviceIds, areaId: batchTargetAreaId.value })
-    ElMessage.success(`已成功将 ${deviceIds.length} 台设备分配到目标区域`)
+    const areaName = getAreaPathById(batchTargetAreaId.value)
+    await batchDeviceArea({ deviceIds, areaId: batchTargetAreaId.value, areaName })
+    ElMessage.success(`已成功将 ${deviceIds.length} 台设备分配到「${areaName || '目标区域'}」`)
     batchDialogVisible.value = false
     selectMode.value = false
     selectedIds.value = []
@@ -436,7 +552,7 @@ async function batchClearArea() {
     return
   }
   try {
-    await batchDeviceArea({ deviceIds, areaId: null })
+    await batchDeviceArea({ deviceIds, areaId: null, areaName: '' })
     ElMessage.success(`已清除 ${deviceIds.length} 台设备的区域关联`)
     selectMode.value = false
     selectedIds.value = []
@@ -563,7 +679,7 @@ async function batchClearArea() {
         <div class="dc-id">{{ d.deviceId }}</div>
         <div class="dc-location">
           <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/></svg>
-          {{ d.area }}
+          {{ displayAreaName(d) }}
         </div>
         <div class="dc-metrics">
           <div class="metric">
@@ -589,6 +705,23 @@ async function batchClearArea() {
           >
             <Edit class="device-action-icon" />
             编辑设备
+          </button>
+          <button
+            v-if="hasPerm('device:update')"
+            class="device-action-btn area"
+            @click.stop="openBindAreaDialog(d)"
+          >
+            <Connection class="device-action-icon" />
+            {{ deviceHasArea(d) ? '更换区域' : '绑定区域' }}
+          </button>
+          <button
+            v-if="hasPerm('device:update') && deviceHasArea(d)"
+            class="device-action-btn unbind"
+            :disabled="areaUnbindingDeviceId === d.deviceId"
+            @click.stop="unbindDeviceArea(d)"
+          >
+            <CircleClose class="device-action-icon" />
+            {{ areaUnbindingDeviceId === d.deviceId ? '解绑中...' : '解绑区域' }}
           </button>
           <button
             v-if="hasPerm('device:delete')"
@@ -703,6 +836,42 @@ async function batchClearArea() {
       :existingDevices="devices"
       @imported="onBatchImported"
     />
+
+    <ElDialog
+      v-model="areaBindingDialogVisible"
+      :title="`绑定区域 - ${areaBindingDevice?.name || areaBindingDevice?.deviceId || ''}`"
+      width="420px"
+      class="batch-area-dialog"
+      @closed="resetAreaBindingDialog"
+    >
+      <div class="batch-area-body">
+        <div class="area-binding-summary">
+          <span class="area-binding-label">当前设备</span>
+          <span class="area-binding-value">{{ areaBindingDevice?.name || '--' }}</span>
+        </div>
+        <div class="area-binding-summary">
+          <span class="area-binding-label">当前区域</span>
+          <span class="area-binding-value">{{ areaBindingDevice ? displayAreaName(areaBindingDevice) : '--' }}</span>
+        </div>
+        <p class="batch-area-label">选择目标区域：</p>
+        <ElCascader
+          v-model="areaBindingTargetId"
+          :options="areaTreeOptions"
+          :props="{ emitPath: false, checkStrictly: true, expandTrigger: 'hover' }"
+          clearable
+          filterable
+          placeholder="输入区域名称搜索或从树中选择"
+          style="width: 100%"
+        />
+        <p class="batch-area-hint">
+          将绑定到：{{ areaBindingTargetId ? (getAreaPathById(areaBindingTargetId) || '目标区域') : '未选择' }}
+        </p>
+      </div>
+      <template #footer>
+        <ElButton @click="areaBindingDialogVisible = false">取消</ElButton>
+        <ElButton type="primary" :loading="areaBindingSubmitting" @click="confirmBindArea">确认绑定</ElButton>
+      </template>
+    </ElDialog>
 
     <!-- 批量分配区域弹窗 -->
     <ElDialog
@@ -845,6 +1014,16 @@ async function batchClearArea() {
   border: 1px solid rgba(0,120,200,0.28);
   color: rgba(140,200,230,0.9);
 }
+.device-action-btn.area {
+  background: rgba(0,120,90,0.14);
+  border: 1px solid rgba(0,180,130,0.26);
+  color: rgba(140,220,190,0.9);
+}
+.device-action-btn.unbind {
+  background: rgba(160,110,20,0.12);
+  border: 1px solid rgba(220,160,60,0.24);
+  color: rgba(235,185,95,0.9);
+}
 .device-action-btn.delete {
   background: rgba(180,30,30,0.1);
   border: 1px solid rgba(200,60,60,0.25);
@@ -863,6 +1042,8 @@ async function batchClearArea() {
 .device-action-btn:hover:not(:disabled),
 .device-toggle-btn:hover:not(:disabled) { transform: translateY(-1px); }
 .device-action-btn.edit:hover:not(:disabled) { background: rgba(0,120,200,0.22); color: #4dd0e1; }
+.device-action-btn.area:hover:not(:disabled) { background: rgba(0,160,120,0.22); color: #7ce0c1; }
+.device-action-btn.unbind:hover:not(:disabled) { background: rgba(180,120,20,0.2); color: #ffc66d; }
 .device-action-btn.delete:hover:not(:disabled) { background: rgba(180,30,30,0.2); color: #ff7070; }
 .device-toggle-btn.stop:hover:not(:disabled) { background: rgba(180,30,30,0.2); color: #ff7070; }
 .device-toggle-btn.start:hover:not(:disabled) { background: rgba(0,180,120,0.22); color: #4caf82; }
@@ -952,6 +1133,17 @@ async function batchClearArea() {
 /* 批量分配弹窗 */
 .batch-area-dialog :deep(.el-dialog__body) { padding: 20px 24px; }
 .batch-area-body { padding: 4px 0; }
+.area-binding-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0,80,140,0.12);
+}
+.area-binding-summary + .batch-area-label { margin-top: 14px; }
+.area-binding-label { font-size: 12px; color: rgba(140,190,220,0.55); }
+.area-binding-value { font-size: 13px; color: rgba(210,235,245,0.92); text-align: right; }
 .batch-area-label { font-size: 13px; color: rgba(190,220,240,0.8); margin-bottom: 10px; }
 .batch-area-hint { font-size: 12px; color: rgba(140,190,220,0.55); margin-top: 12px; }
 .batch-area-dialog :deep(.el-cascader__wrapper) { background: rgba(8,20,45,0.72); }

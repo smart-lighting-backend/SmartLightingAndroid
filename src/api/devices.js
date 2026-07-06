@@ -13,6 +13,7 @@
  *   GET    /api/devices/statistics/status     状态统计
  *   GET    /api/devices/statistics/area-status 区域状态统计
  *   POST   /api/devices/{deviceId}/control   手动控制
+ *   PUT    /api/devices/batch-area            批量绑定/解绑设备区域
  *
  * 设备状态: 0 停用 | 1 在线 | 2 离线 | 3 异常
  */
@@ -148,6 +149,28 @@ function applyMockDelete(deviceId) {
     persistMockDevices()
   }
   return null
+}
+
+function applyMockBatchArea(deviceIds = [], areaId, areaName = '') {
+  const idSet = new Set(deviceIds.map(id => String(id)))
+  const nextAreaId = areaId === undefined ? null : areaId
+  const nextAreaName = nextAreaId === null ? '' : (areaName || `区域ID: ${nextAreaId}`)
+  const updated = []
+
+  mockDevices.forEach((device, index) => {
+    if (!idSet.has(String(device.id))) return
+
+    const next = {
+      ...device,
+      areaId: nextAreaId,
+      area: nextAreaName,
+    }
+    mockDevices.splice(index, 1, next)
+    updated.push(next)
+  })
+
+  persistMockDevices()
+  return updated
 }
 
 // ── 设备组合查询（分页）POST /api/devices/list ────────────────────────────
@@ -455,12 +478,21 @@ export function unlockDevice(deviceId) {
 // ── 批量分配设备区域 PUT /api/devices/batch-area ─────────────────────────
 /**
  * 批量修改设备的所属区域。
- * @param {{ deviceIds: number[], areaId: number|null }} data
+ * @param {{ deviceIds: number[], areaId: number|null, areaName?: string }} data
  *   - deviceIds  设备数据库 ID 列表（必填）
  *   - areaId     目标区域 ID（传 null 清除区域关联）
+ *   - areaName   区域名称/路径，仅前端 Mock 回填展示用
  */
 export function batchDeviceArea(data) {
-  return request.put('/api/devices/batch-area', data)
+  const payload = {
+    deviceIds: data.deviceIds,
+    areaId: data.areaId,
+  }
+  return safeCall(
+    () => request.put('/api/devices/batch-area', payload),
+    () => applyMockBatchArea(data.deviceIds, data.areaId, data.areaName),
+    'PUT /api/devices/batch-area'
+  )
 }
 
 // ── 节点列表（手动控制弹窗用） ─────────────────────────────────────────────
