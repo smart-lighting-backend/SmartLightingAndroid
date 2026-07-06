@@ -339,7 +339,7 @@ onMounted(loadTree)
           <Refresh class="btn-icon" />
           刷新
         </button>
-        <button v-if="hasPerm('device:update')" class="add-btn" @click="openCreate(null)">
+        <button v-if="hasPerm('device_area:create')" class="add-btn" @click="openCreate(null)">
           <Plus class="btn-icon" />
           新增区域
         </button>
@@ -388,7 +388,7 @@ onMounted(loadTree)
               <h3 class="detail-title">{{ selectedNode.name }}</h3>
               <div class="detail-actions">
                 <button
-                  v-if="hasPerm('device:update')"
+                  v-if="hasPerm('device_area:update')"
                   class="detail-btn edit"
                   @click="openEdit(selectedNode)"
                 >
@@ -396,7 +396,7 @@ onMounted(loadTree)
                   编辑
                 </button>
                 <button
-                  v-if="hasPerm('device:delete')"
+                  v-if="hasPerm('device_area:delete')"
                   class="detail-btn delete"
                   @click="handleDelete(selectedNode)"
                 >

@@ -98,6 +98,7 @@ onUnmounted(() => { cleanupCanvas?.() })
 const MOCK_PERMISSIONS = [
   'dashboard', 'dashboard:read',
   'device', 'device:read', 'device:create', 'device:update', 'device:delete', 'device:control',
+  'device_area', 'device_area:read', 'device_area:create', 'device_area:update', 'device_area:delete',
   'telemetry', 'telemetry:read',
   'energy', 'energy:read',
   'alarm', 'alarm:read', 'alarm:handle', 'alarm:delete',
