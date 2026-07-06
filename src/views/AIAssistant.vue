@@ -201,6 +201,7 @@ async function sendMessage(text) {
   position: relative;
   padding: 24px 28px;
   height: calc(100vh - 56px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -576,6 +577,7 @@ async function sendMessage(text) {
 .chat-container {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-rows: minmax(0, 1fr);
   gap: 18px;
   padding: 16px;
   background:
@@ -842,6 +844,8 @@ async function sendMessage(text) {
 .assistant-page {
   padding-top: 16px;
   padding-bottom: 14px;
+  height: calc(100vh - 56px);
+  min-height: 0;
 }
 
 .page-header {
@@ -863,14 +867,29 @@ async function sendMessage(text) {
 }
 
 .chat-container {
-  align-items: start;
+  align-items: stretch;
+  flex: 1 1 0;
   min-height: 0;
+  height: auto;
 }
 
 .chat-main {
   width: 100%;
-  height: min(620px, calc(100vh - 150px));
-  min-height: 460px;
+  height: 100%;
+  min-height: 0;
+}
+
+.ai-side {
+  height: 100%;
+  min-height: 0;
+}
+
+.signal-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .chat-main-header {

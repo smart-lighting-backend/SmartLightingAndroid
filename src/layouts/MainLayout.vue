@@ -162,11 +162,6 @@ function logout() {
 }
 
 function navigateTo(item) {
-  // 如果菜单有路由路径，先导航
-  if (item.path) {
-    router.push(item.path)
-  }
-  // 如果有子菜单，同时切换展开/折叠
   if (item.children && item.children.length > 0) {
     if (expandedIds.value.has(item.id)) {
       expandedIds.value.delete(item.id)
@@ -174,6 +169,10 @@ function navigateTo(item) {
       expandedIds.value.add(item.id)
     }
     expandedIds.value = new Set(expandedIds.value)
+    return
+  }
+  if (item.path) {
+    router.push(item.path)
   }
 }
 
