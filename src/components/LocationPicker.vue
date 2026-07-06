@@ -29,24 +29,14 @@ let deviceMarkers = []     // 已有设备标记
 let geocoder = null
 
 const COLORS = { 0: '#888', 1: '#4caf82', 2: '#9e9e9e', 3: '#ffa726' }
-const CHINA = { minLng: 73.5, maxLng: 135, minLat: 18, maxLat: 54 }
-
 const deviceOptions = computed(() =>
   props.devices.map(d => ({ value: d.deviceId, label: `${d.name || d.deviceId} (${d.deviceId})` }))
 )
-
-function inChina(lng, lat) {
-  return lng >= CHINA.minLng && lng <= CHINA.maxLng && lat >= CHINA.minLat && lat <= CHINA.maxLat
-}
 
 // ── 选点标记 ──
 function updateCoords(lng, lat) {
   const a = Number(lng), b = Number(lat)
   if (isNaN(a) || isNaN(b)) return
-  if (!inChina(a, b)) {
-    confirmMsg.value = '所选位置超出中国境内，当前项目设备不允许放置在境外'
-    return
-  }
   confirmMsg.value = ''
   currentLng.value = a.toFixed(6)
   currentLat.value = b.toFixed(6)

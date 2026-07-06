@@ -50,14 +50,13 @@ function onBatchImported() {
   loadDevices()
 }
 
-function makeCoordRule(field, min, max) {
+function makeCoordRule(field) {
   return [
     {
       validator: (_rule, value, callback) => {
         if (value === '' || value === null || value === undefined) { callback(); return }
-        const v = Number(value)
-        if (Number.isNaN(v) || v < min || v > max) {
-          callback(new Error(`${field}需在 ${min}°~${max}° 之间（中国境内），当前项目设备不允许放置在境外`))
+        if (isNaN(Number(value))) {
+          callback(new Error(`${field}请输入有效数字`))
           return
         }
         callback()
@@ -70,8 +69,8 @@ function makeCoordRule(field, min, max) {
 const createRules = {
   deviceId: [{ required: true, message: '请输入设备编号', trigger: 'blur' }],
   status: [{ required: true, message: '请选择设备状态', trigger: 'change' }],
-  longitude: makeCoordRule('经度', 73.5, 135),
-  latitude: makeCoordRule('纬度', 18, 54),
+  longitude: makeCoordRule('经度'),
+  latitude: makeCoordRule('纬度'),
 }
 
 function openLocationPicker() {
