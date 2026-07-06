@@ -4,7 +4,7 @@ import {
   ElButton, ElDialog, ElForm, ElFormItem, ElInput,
   ElSelect, ElOption, ElMessage, ElTree, ElMessageBox,
   ElCard, ElEmpty, ElTable, ElTableColumn, ElTag,
-  ElCheckbox
+  ElCheckbox, ElPagination
 } from 'element-plus'
 import { Plus, Edit, Delete, Refresh, Search } from '@element-plus/icons-vue'
 import { fetchAreaTree, createArea, updateArea, deleteArea } from '../api/area.js'
@@ -73,6 +73,36 @@ function isDescendantOrSelf(node, targetId) {
   return node.children.some(child => isDescendantOrSelf(child, targetId))
 }
 
+/** 从树中查找指定 ID 的节点 */
+function findNodeById(nodes, targetId) {
+  for (const node of nodes) {
+    if (node.id === targetId) return node
+    if (node.children?.length) {
+      const found = findNodeById(node.children, targetId)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+/** 收集目标节点及其所有子孙节点 ID（用于跨层查询设备） */
+function collectDescendantIds(nodes, targetId) {
+  const ids = []
+  function walk(node) {
+    ids.push(node.id)
+    if (node.children?.length) node.children.forEach(walk)
+  }
+  function find(nodes) {
+    for (const node of nodes) {
+      if (node.id === targetId) { walk(node); return true }
+      if (node.children?.length && find(node.children)) return true
+    }
+    return false
+  }
+  find(nodes)
+  return ids
+}
+
 // ── 节点路径显示 ──────────────────────────────────────────────────────────
 const selectedNodePath = computed(() => {
   if (!selectedNode.value) return ''
@@ -101,6 +131,17 @@ const selectedNodePath = computed(() => {
 // ── 该区域下的设备 ─────────────────────────────────────────────────────────
 const areaDevices = ref([])
 const areaDevicesLoading = ref(false)
+const devicePageNum = ref(1)
+const devicePageSize = ref(10)
+
+const pagedAreaDevices = computed(() => {
+  const start = (devicePageNum.value - 1) * devicePageSize.value
+  return areaDevices.value.slice(start, start + devicePageSize.value)
+})
+
+watch(areaDevices, () => {
+  devicePageNum.value = 1
+})
 
 async function loadAreaDevices(areaId) {
   if (!areaId) {
@@ -109,7 +150,9 @@ async function loadAreaDevices(areaId) {
   }
   areaDevicesLoading.value = true
   try {
-    const res = await fetchDeviceList({ areaId, pageSize: 200 })
+    // 收集当前区域及所有子区域的 ID，显示汇总设备
+    const allIds = collectDescendantIds(treeData.value, areaId)
+    const res = await fetchDeviceList({ areaIds: allIds, pageSize: 10000 })
     areaDevices.value = Array.isArray(res) ? res : (res?.data || [])
   } catch {
     areaDevices.value = []
@@ -268,6 +311,24 @@ function openEdit(node) {
 async function handleSubmit() {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
+
+  // 名称唯一性校验（前端预检，避免后端 400）
+  const nameToCheck = formData.value.name.trim().toLowerCase()
+  const allNames = []
+  function collectNames(nodes) {
+    for (const n of nodes) {
+      allNames.push({ id: n.id, name: n.name.toLowerCase() })
+      if (n.children?.length) collectNames(n.children)
+    }
+  }
+  collectNames(treeData.value)
+  const isDuplicate = dialogMode.value === 'edit'
+    ? allNames.some(n => n.id !== editingId.value && n.name === nameToCheck)
+    : allNames.some(n => n.name === nameToCheck)
+  if (isDuplicate) {
+    ElMessage.warning(`区域名称"${formData.value.name}"已存在，请使用其他名称`)
+    return
+  }
 
   submitting.value = true
   try {
@@ -439,7 +500,7 @@ onMounted(loadTree)
         <ElCard v-if="selectedNode" class="device-card" :body-style="{ padding: '12px 16px' }">
           <div class="device-header">
             <span class="device-title">
-              归属设备
+              归属设备（含子区域）
               <span class="device-count">{{ areaDevices.length }} 台</span>
             </span>
             <div class="device-header-actions">
@@ -466,22 +527,35 @@ onMounted(loadTree)
             <span>加载中...</span>
           </div>
           <ElEmpty v-else-if="!areaDevices.length" :image-size="50" description="该区域暂无设备" />
-          <ElTable v-else :data="areaDevices" stripe size="small" class="area-device-table">
-            <ElTableColumn prop="deviceId" label="设备编号" width="110" />
-            <ElTableColumn prop="name" label="设备名称" min-width="130" />
-            <ElTableColumn prop="area" label="区域" width="100">
-              <template #default="{ row }">
-                <ElTag size="small" effect="plain">{{ row.area || '--' }}</ElTag>
-              </template>
-            </ElTableColumn>
-            <ElTableColumn label="状态" width="80">
-              <template #default="{ row }">
-                <ElTag :type="statusTag(row.status)" size="small" effect="light">
-                  {{ statusLabel(row.status) }}
-                </ElTag>
-              </template>
-            </ElTableColumn>
-          </ElTable>
+          <template v-else>
+            <ElTable :data="pagedAreaDevices" stripe size="small" class="area-device-table">
+              <ElTableColumn prop="deviceId" label="设备编号" width="110" />
+              <ElTableColumn prop="name" label="设备名称" min-width="130" />
+              <ElTableColumn prop="area" label="区域" width="100">
+                <template #default="{ row }">
+                  <ElTag size="small" effect="plain">{{ row.area || '--' }}</ElTag>
+                </template>
+              </ElTableColumn>
+              <ElTableColumn label="状态" width="80">
+                <template #default="{ row }">
+                  <ElTag :type="statusTag(row.status)" size="small" effect="light">
+                    {{ statusLabel(row.status) }}
+                  </ElTag>
+                </template>
+              </ElTableColumn>
+            </ElTable>
+            <div class="device-pagination-wrap" v-if="areaDevices.length">
+              <ElPagination
+                v-model:current-page="devicePageNum"
+                v-model:page-size="devicePageSize"
+                :total="areaDevices.length"
+                :page-sizes="[10, 20, 50]"
+                background
+                small
+                layout="sizes, prev, pager, next"
+              />
+            </div>
+          </template>
         </ElCard>
       </div>
     </div>
@@ -936,6 +1010,16 @@ onMounted(loadTree)
 
 .area-device-table {
   width: 100%;
+}
+
+.device-pagination-wrap {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 0 4px;
+}
+
+.device-pagination-wrap :deep(.el-pagination) {
+  --el-pagination-font-size: 12px;
 }
 
 /* ── 批量分配对话框 ─────────────────────────────────────── */

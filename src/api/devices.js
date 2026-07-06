@@ -249,10 +249,12 @@ export async function fetchDeviceList(params = {}) {
   const body = {}
   const pageNum = params.pageNum || 1
   const pageSize = params.pageSize || 100
-  if (params.area !== undefined && params.area !== null)   body.area   = params.area
+  if (params.area !== undefined && params.area !== null)    body.area   = params.area
   if (params.areaId !== undefined && params.areaId !== null) body.areaId = params.areaId
   if (params.status !== undefined && params.status !== null) body.status = params.status
-  if (params.keyword)                                       body.name   = params.keyword
+  if (params.keyword)                                        body.name   = params.keyword
+  // areaIds 后端不支持，仅用于 Mock 和客户端过滤
+  const areaIds = params.areaIds
 
   let mockList = activeMockDevices()
   if (params.keyword) {
@@ -265,6 +267,10 @@ export async function fetchDeviceList(params = {}) {
   }
   if (body.area)   mockList = mockList.filter(d => d.area   === body.area)
   if (body.areaId) mockList = mockList.filter(d => d.areaId === body.areaId)
+  if (areaIds?.length) {
+    const idSet = new Set(areaIds.map(v => typeof v === 'number' ? v : Number(v)))
+    mockList = mockList.filter(d => idSet.has(d.areaId))
+  }
   if (body.status !== undefined) mockList = mockList.filter(d => d.status === body.status)
 
   const res = await safeCall(
@@ -273,10 +279,19 @@ export async function fetchDeviceList(params = {}) {
     'POST /api/devices/list (light)'
   )
   // 兼容后端分页格式 { records: [...] } 和直接返回数组
-  if (res?.data?.records) return res.data.records
-  if (Array.isArray(res)) return res
-  if (Array.isArray(res?.data)) return res.data
-  return res || []
+  let result = []
+  if (res?.data?.records) result = res.data.records
+  else if (Array.isArray(res)) result = res
+  else if (Array.isArray(res?.data)) result = res.data
+  else result = res || []
+
+  // 客户端侧按 areaIds 过滤（后端不支持 areaIds 字段）
+  if (areaIds?.length) {
+    const idSet = new Set(areaIds.map(v => typeof v === 'number' ? v : Number(v)))
+    result = result.filter(d => idSet.has(d.areaId))
+  }
+
+  return result
 }
 
 // ── 地图标注：全量设备（精简查询） ─────────────────────────────────────────
