@@ -57,10 +57,9 @@ export function stateFromControlHistoryRecord(record, fallbackBrightness = 75) {
   return null
 }
 
-export function resolveManualControlState(node, latestHistoryRecord, fallbackBrightness = 75, now = new Date()) {
-  const historyState = isManualModeActive(node, now)
-    ? stateFromControlHistoryRecord(latestHistoryRecord, fallbackBrightness)
-    : null
-
-  return historyState || stateFromLatestData(node?.latestData, fallbackBrightness)
+export function resolveManualControlState(node, latestHistoryRecord, fallbackBrightness = 75) {
+  // 始终优先从控制历史解析（无论手动/自动模式），因为 latestData 遥测快照不含 action 字段
+  const historyState = stateFromControlHistoryRecord(latestHistoryRecord, fallbackBrightness)
+  if (historyState) return historyState
+  return stateFromLatestData(node?.latestData, fallbackBrightness)
 }

@@ -251,7 +251,7 @@ function normalizeOptionalText(value) {
 
 function buildCreatePayload() {
   const formStatus = Number(createForm.value.status ?? 1)
-  const enabled = formStatus === 0 ? false : createForm.value.enabled !== false
+  const enabled = formStatus !== 0
   const lng = createForm.value.longitude?.toString().trim()
   const lat = createForm.value.latitude?.toString().trim()
   const location = (lng && lat) ? `${lng},${lat}` : undefined
@@ -862,9 +862,6 @@ async function batchClearArea() {
           <ElSelect v-model="createForm.status" style="width: 100%">
             <ElOption v-for="option in createStatusOptions" :key="option.value" :label="option.label" :value="option.value" />
           </ElSelect>
-        </ElFormItem>
-        <ElFormItem label="启用状态" prop="enabled">
-          <ElSwitch v-model="createForm.enabled" active-text="启用" inactive-text="停用" />
         </ElFormItem>
       </ElForm>
       <template #footer>

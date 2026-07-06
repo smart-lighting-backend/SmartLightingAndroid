@@ -1,4 +1,4 @@
-<script setup>import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
+<script setup>import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElButton, ElCard, ElTag, ElRadioGroup, ElRadioButton, ElRow, ElCol, ElSlider, ElTable, ElTableColumn, ElMessage, ElMessageBox } from 'element-plus';
 import { ArrowLeft, Lightning, Sunny, Moon, Refresh, Warning } from '@element-plus/icons-vue';
@@ -10,10 +10,7 @@ import { fetchLatestTelemetry, fetchTelemetryHistory } from '../api/telemetry.js
 import { sendControlCommand, getControlHistory } from '../api/control.js';
 import { useUserInfo } from '../composables/useUserInfo.js';
 import { useAutoRefresh } from '../composables/useAutoRefresh.js';
-import {
-  isManualModeActive,
-  resolveManualControlState,
-} from '../utils/manualControlState.js';
+import { resolveManualControlState } from '../utils/manualControlState.js';
 const { hasPerm } = useUserInfo();
 const route = useRoute();
 const router = useRouter();
@@ -155,7 +152,7 @@ async function fetchLatestControlRecord() {
 }
 
 async function applyDeviceControlState(device) {
-  const latestRecord = isManualModeActive(device) ? await fetchLatestControlRecord() : null
+  const latestRecord = await fetchLatestControlRecord()
   applyResolvedControlState(resolveManualControlState(device, latestRecord, 80))
 }
 
@@ -590,12 +587,11 @@ const handleControlCommand = async (command) => {
  const response = await sendControlCommand(deviceId.value, command, params);
  if (response.code === 200) {
  ElMessage.success(response.message);
- ElMessage.info(`执行反馈: ${response.data.feedback.message}`);
  // 更新灯光状态反馈
  if (command === 'turn_on') lightStatus.value = true;
+ else if (command === 'dim') { lightStatus.value = true; brightness.value = params.brightness; }
  else if (command === 'turn_off') lightStatus.value = false;
  await loadControlHistory();
- await loadDeviceInfo();
  } else {
  ElMessage.error(response.message);
  }
@@ -644,6 +640,20 @@ onMounted(async () => {
    } catch {}
  }, { interval: 12000 })
 });
+
+// 路由参数变化时（如 /devices/SL-001 → /devices/SL-002）重新加载
+watch(() => route.params.id, async (newId) => {
+  if (newId && newId !== deviceId.value) {
+    deviceId.value = newId;
+    await loadDeviceInfo();
+    loadHealth();
+    loadLatestTelemetry();
+    loadHistoryData();
+    loadControlHistory();
+    setTimeout(() => initChart(), 100);
+  }
+});
+
 onBeforeUnmount(() => {
  if (resizeTimer) {
  clearTimeout(resizeTimer);
