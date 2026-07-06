@@ -297,9 +297,9 @@ onMounted(() => {
 .btn-search { display: flex; align-items: center; gap: 6px; padding: 0 18px; height: 36px; background: linear-gradient(135deg, #0077cc, #0099e6); border: none; border-radius: 6px; color: #fff; font-size: 13px; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 10px rgba(0,150,230,0.3); }
 .btn-search svg { width: 14px; height: 14px; }
 .btn-search:hover { box-shadow: 0 4px 16px rgba(0,150,230,0.5); transform: translateY(-1px); }
-.btn-reset { display: flex; align-items: center; gap: 6px; padding: 0 16px; height: 36px; background: rgba(0,60,120,0.3); border: 1px solid rgba(0,120,200,0.3); border-radius: 6px; color: rgba(140,200,230,0.8); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+.btn-reset { display: flex; align-items: center; gap: 6px; padding: 0 16px; height: 36px; background: rgba(255,255,255,0.94) !important; border: 1px solid rgba(0,141,230,0.24) !important; border-radius: 6px; color: #006fc2 !important; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; box-shadow: 0 8px 20px rgba(30,86,130,0.08) !important; }
 .btn-reset svg { width: 14px; height: 14px; }
-.btn-reset:hover { background: rgba(0,80,140,0.3); color: #4dd0e1; }
+.btn-reset:hover { background: #ffffff !important; border-color: rgba(0,141,230,0.42) !important; color: #008de6 !important; transform: translateY(-1px); box-shadow: 0 12px 28px rgba(30,86,130,0.12) !important; }
 
 /* Table */
 .table-card { background: rgba(8,20,45,0.8); border: 1px solid rgba(0,120,200,0.15); border-radius: 10px; overflow: hidden; }

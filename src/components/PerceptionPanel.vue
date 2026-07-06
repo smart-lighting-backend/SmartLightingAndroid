@@ -185,6 +185,68 @@ function alarmLevelTag(level) {
 .er-meta { color: rgba(180,210,230,0.7); }
 .er-empty { color: rgba(140,190,220,0.35); }
 
+/* 亮色主题可读性修正 */
+.perception-card {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(0, 141, 230, 0.16) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 18px 42px rgba(14, 70, 120, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
+  color: #1d3148 !important;
+}
+
+.perception-card :deep(.el-card__body) {
+  color: #1d3148 !important;
+}
+
+.card-header h3 {
+  color: #0d1b2d !important;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.update-time {
+  color: #31516f !important;
+  background: rgba(248, 252, 255, 0.88);
+  border: 1px solid rgba(16, 126, 196, 0.14);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sensor-cell,
+.event-row {
+  background: rgba(248, 252, 255, 0.88) !important;
+  border: 1px solid rgba(16, 126, 196, 0.14) !important;
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.sensor-cell:hover,
+.event-row:hover {
+  background: #ffffff !important;
+  border-color: rgba(0, 141, 230, 0.28) !important;
+  box-shadow: 0 14px 32px rgba(0, 126, 206, 0.10);
+}
+
+.sc-icon {
+  color: #006fc2;
+}
+
+.sc-label,
+.sc-unit,
+.er-label,
+.er-empty {
+  color: #40566f !important;
+  font-weight: 700;
+}
+
+.sc-value,
+.er-meta {
+  color: #1d3148 !important;
+  font-weight: 800;
+}
+
 @media (max-width: 768px) {
   .sensor-grid { grid-template-columns: repeat(2, 1fr); }
 }

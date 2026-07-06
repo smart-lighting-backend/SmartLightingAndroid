@@ -247,6 +247,8 @@ export function fetchDevicePage(params = {}) {
  */
 export async function fetchDeviceList(params = {}) {
   const body = {}
+  const pageNum = params.pageNum || 1
+  const pageSize = params.pageSize || 100
   if (params.area !== undefined && params.area !== null)   body.area   = params.area
   if (params.areaId !== undefined && params.areaId !== null) body.areaId = params.areaId
   if (params.status !== undefined && params.status !== null) body.status = params.status
@@ -266,7 +268,7 @@ export async function fetchDeviceList(params = {}) {
   if (body.status !== undefined) mockList = mockList.filter(d => d.status === body.status)
 
   const res = await safeCall(
-    () => request.post('/api/devices/list', { pageNum: 1, pageSize: 100, ...body }),
+    () => request.post('/api/devices/list', { pageNum, pageSize, ...body }),
     mockList,
     'POST /api/devices/list (light)'
   )

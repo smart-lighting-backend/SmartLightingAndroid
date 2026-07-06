@@ -1,5 +1,3 @@
-import * as XLSX from 'xlsx'
-
 const TEMPLATE_HEADERS = ['设备编号', '设备名称', '所属区域', '经度', '纬度', '额定功率(W)']
 
 // 导出表头
@@ -7,18 +5,11 @@ const EXPORT_HEADERS = ['设备编号', '设备名称', '所属区域', '安装�
 const STATUS_LABELS = { 0: '停用', 1: '在线', 2: '离线', 3: '异常' }
 
 /**
- * 下载批量导入模板 (.xlsx)
+ * 下载批量导入模板 (.csv)
  */
 export function downloadTemplate() {
   const sampleRow = ['SL-007', '北门-03', 'A区', '106.5622', '29.5621', '60']
-  const ws = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS, sampleRow])
-
-  // 表头样式（加粗 + 背景色）
-  ws['!cols'] = TEMPLATE_HEADERS.map(() => ({ wch: 18 }))
-
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, '设备导入模板')
-  XLSX.writeFile(wb, '设备批量导入模板.xlsx')
+  downloadCsv([TEMPLATE_HEADERS, sampleRow], '设备批量导入模板.csv')
 }
 
 /**
@@ -31,9 +22,7 @@ export function parseImportFile(file) {
     const reader = new FileReader()
     reader.onload = (e) => {
       try {
-        const wb = XLSX.read(e.target.result, { type: 'array' })
-        const ws = wb.Sheets[wb.SheetNames[0]]
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+        const rows = parseCsv(e.target.result)
 
         if (rows.length < 2) {
           reject(new Error('文件为空或只有表头'))
@@ -80,7 +69,13 @@ export function parseImportFile(file) {
       }
     }
     reader.onerror = () => reject(new Error('文件读取失败'))
-    reader.readAsArrayBuffer(file)
+
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    if (ext && ext !== 'csv') {
+      reject(new Error('当前环境未安装 xlsx 依赖，暂只支持 CSV 文件。请将 Excel 另存为 CSV 后导入。'))
+      return
+    }
+    reader.readAsText(file, 'utf-8')
   })
 }
 
@@ -164,7 +159,7 @@ export function rowsToPayload(rows) {
 }
 
 /**
- * 导出设备数据为 Excel 文件
+ * 导出设备数据为 CSV 文件
  * @param {Array} devices 设备列表
  * @param {string} area 区域筛选（空=全部）
  */
@@ -185,12 +180,8 @@ export function exportDevices(devices, area = '') {
     d.topicPrefix || 'streetlight',
   ])
 
-  const ws = XLSX.utils.aoa_to_sheet([EXPORT_HEADERS, ...data])
-  ws['!cols'] = EXPORT_HEADERS.map(() => ({ wch: 16 }))
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, '设备清单')
-  const filename = area ? `设备清单_${area}.xlsx` : '设备清单_全部.xlsx'
-  XLSX.writeFile(wb, filename)
+  const filename = area ? `设备清单_${area}.csv` : '设备清单_全部.csv'
+  downloadCsv([EXPORT_HEADERS, ...data], filename)
 }
 
 function formatExportTime(val) {
@@ -200,4 +191,73 @@ function formatExportTime(val) {
     return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')} ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}`
   }
   return String(val).replace('T', ' ').slice(0, 16)
+}
+
+function downloadCsv(rows, filename) {
+  const csv = rows.map(row => row.map(escapeCsvCell).join(',')).join('\r\n')
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+function escapeCsvCell(value) {
+  const text = String(value ?? '')
+  if (/[",\r\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`
+  }
+  return text
+}
+
+function parseCsv(text) {
+  const rows = []
+  let row = []
+  let cell = ''
+  let inQuotes = false
+
+  const source = String(text || '').replace(/^\ufeff/, '')
+
+  for (let i = 0; i < source.length; i++) {
+    const ch = source[i]
+    const next = source[i + 1]
+
+    if (ch === '"') {
+      if (inQuotes && next === '"') {
+        cell += '"'
+        i++
+      } else {
+        inQuotes = !inQuotes
+      }
+      continue
+    }
+
+    if (ch === ',' && !inQuotes) {
+      row.push(cell)
+      cell = ''
+      continue
+    }
+
+    if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      if (ch === '\r' && next === '\n') i++
+      row.push(cell)
+      rows.push(row)
+      row = []
+      cell = ''
+      continue
+    }
+
+    cell += ch
+  }
+
+  if (cell || row.length) {
+    row.push(cell)
+    rows.push(row)
+  }
+
+  return rows
 }

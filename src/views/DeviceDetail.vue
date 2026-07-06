@@ -211,9 +211,9 @@ const updateChart = () => {
  text: '光照度/PIR 历史趋势',
  left: 'center',
  textStyle: {
- fontSize: 16,
- fontWeight: 500,
- color: '#ffffff'
+ fontSize: 17,
+ fontWeight: 800,
+ color: '#0d1b2d'
  }
  },
  tooltip: {
@@ -224,17 +224,19 @@ const updateChart = () => {
  color: '#606266'
  }
  },
- backgroundColor: 'rgba(30, 30, 50, 0.9)',
- borderColor: 'rgba(255, 255, 255, 0.1)',
+ backgroundColor: 'rgba(255, 255, 255, 0.96)',
+ borderColor: 'rgba(0, 141, 230, 0.24)',
  textStyle: {
- color: '#e0e0e0'
+ color: '#1d3148'
  }
  },
  legend: {
  data: ['光照度(lux)', 'PIR(有人=1)'],
  top: 30,
  textStyle: {
- color: '#909399'
+ color: '#31516f',
+ fontSize: 13,
+ fontWeight: 700
  }
  },
  grid: {
@@ -250,12 +252,15 @@ const updateChart = () => {
  name: historyData.value.length > 0 ? ('\n\n\n' + historyData.value[0].time.substring(0, 4) + '年') : '',
  nameLocation: 'start',
  nameTextStyle: {
- color: '#909399',
+ color: '#40566f',
  fontSize: 12,
+ fontWeight: 700,
  padding: [0, 5, 0, 0]
  },
  axisLabel: {
- color: '#909399',
+ color: '#31516f',
+ fontSize: 12,
+ fontWeight: 700,
  rotate: timeRange.value === '7d' ? 0 : 45,
  formatter: function(value) {
  if (!value) return '';
@@ -265,7 +270,7 @@ const updateChart = () => {
  },
  axisLine: {
  lineStyle: {
- color: '#404050'
+ color: 'rgba(0, 141, 230, 0.22)'
  }
  },
  axisTick: {
@@ -278,21 +283,24 @@ const updateChart = () => {
  name: '光照度(lux)',
  position: 'left',
  nameTextStyle: {
- color: '#909399'
+ color: '#40566f',
+ fontWeight: 700
  },
  axisLabel: {
- color: '#909399',
+ color: '#31516f',
+ fontSize: 12,
+ fontWeight: 700,
  formatter: '{value}'
  },
  axisLine: {
  show: true,
  lineStyle: {
- color: '#404050'
+ color: 'rgba(0, 141, 230, 0.22)'
  }
  },
  splitLine: {
  lineStyle: {
- color: '#303040'
+ color: 'rgba(16, 126, 196, 0.12)'
  }
  }
  },
@@ -304,16 +312,19 @@ const updateChart = () => {
  max: 1.5,
  interval: 0.5,
  nameTextStyle: {
- color: '#909399'
+ color: '#40566f',
+ fontWeight: 700
  },
  axisLabel: {
- color: '#909399',
+ color: '#31516f',
+ fontSize: 12,
+ fontWeight: 700,
  formatter: (value) => value === 1 ? '有人' : value === 0 ? '无人' : ''
  },
  axisLine: {
  show: true,
  lineStyle: {
- color: '#404050'
+ color: 'rgba(0, 141, 230, 0.22)'
  }
  },
  splitLine: {
@@ -378,9 +389,9 @@ const updateTempHumidityChart = () => {
  text: '温度/湿度 历史趋势',
  left: 'center',
  textStyle: {
- fontSize: 16,
- fontWeight: 500,
- color: '#ffffff'
+ fontSize: 17,
+ fontWeight: 800,
+ color: '#0d1b2d'
  }
  },
  tooltip: {
@@ -391,17 +402,19 @@ const updateTempHumidityChart = () => {
  color: '#606266'
  }
  },
- backgroundColor: 'rgba(30, 30, 50, 0.9)',
- borderColor: 'rgba(255, 255, 255, 0.1)',
+ backgroundColor: 'rgba(255, 255, 255, 0.96)',
+ borderColor: 'rgba(0, 141, 230, 0.24)',
  textStyle: {
- color: '#e0e0e0'
+ color: '#1d3148'
  }
  },
  legend: {
  data: ['温度(°C)', '湿度(%)'],
  top: 30,
  textStyle: {
- color: '#909399'
+ color: '#31516f',
+ fontSize: 13,
+ fontWeight: 700
  }
  },
  grid: {
@@ -417,12 +430,15 @@ const updateTempHumidityChart = () => {
  name: historyData.value.length > 0 ? ('\n\n\n' + historyData.value[0].time.substring(0, 4) + '年') : '',
  nameLocation: 'start',
  nameTextStyle: {
- color: '#909399',
+ color: '#40566f',
  fontSize: 12,
+ fontWeight: 700,
  padding: [0, 5, 0, 0]
  },
  axisLabel: {
- color: '#909399',
+ color: '#31516f',
+ fontSize: 12,
+ fontWeight: 700,
  rotate: timeRange.value === '7d' ? 0 : 45,
  formatter: function(value) {
  if (!value) return '';
@@ -432,7 +448,7 @@ const updateTempHumidityChart = () => {
  },
  axisLine: {
  lineStyle: {
- color: '#404050'
+ color: 'rgba(0, 141, 230, 0.22)'
  }
  },
  axisTick: {
@@ -445,21 +461,24 @@ const updateTempHumidityChart = () => {
  name: '温度(°C)',
  position: 'left',
  nameTextStyle: {
- color: '#909399'
+ color: '#40566f',
+ fontWeight: 700
  },
  axisLabel: {
- color: '#909399',
+ color: '#31516f',
+ fontSize: 12,
+ fontWeight: 700,
  formatter: '{value}'
  },
  axisLine: {
  show: true,
  lineStyle: {
- color: '#404050'
+ color: 'rgba(0, 141, 230, 0.22)'
  }
  },
  splitLine: {
  lineStyle: {
- color: '#303040'
+ color: 'rgba(16, 126, 196, 0.12)'
  }
  }
  },
@@ -470,16 +489,19 @@ const updateTempHumidityChart = () => {
  min: 0,
  max: 100,
  nameTextStyle: {
- color: '#909399'
+ color: '#40566f',
+ fontWeight: 700
  },
  axisLabel: {
- color: '#909399',
+ color: '#31516f',
+ fontSize: 12,
+ fontWeight: 700,
  formatter: '{value}%'
  },
  axisLine: {
  show: true,
  lineStyle: {
- color: '#404050'
+ color: 'rgba(0, 141, 230, 0.22)'
  }
  },
  splitLine: {
@@ -697,7 +719,7 @@ onBeforeUnmount(() => {
           <div class="dev-info-left">
             <div class="health-ring-wrap">
               <svg class="health-ring" viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="8"/>
+                <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(0,141,230,0.16)" stroke-width="8"/>
                 <circle cx="60" cy="60" r="50" fill="none" :stroke="healthScoreColor" stroke-width="8"
                   stroke-linecap="round" transform="rotate(-90, 60, 60)"
                   :stroke-dasharray="314.16"
@@ -758,7 +780,7 @@ onBeforeUnmount(() => {
           <div class="health-overview">
             <div class="health-big-ring">
               <svg viewBox="0 0 120 120" class="health-big-svg">
-                <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="10"/>
+                <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(0,141,230,0.16)" stroke-width="10"/>
                 <circle cx="60" cy="60" r="50" fill="none" :stroke="healthDetail?.levelColor" stroke-width="10"
                   stroke-linecap="round" transform="rotate(-90, 60, 60)"
                   :stroke-dasharray="314.16"
@@ -1603,7 +1625,7 @@ onBeforeUnmount(() => {
 .time-range-group :deep(.el-radio-button__inner) {
   background: transparent !important;
   border: none !important;
-  color: #909399 !important;
+  color: #5e7187 !important;
   padding: 8px 20px;
   border-radius: 8px !important;
   transition: all 0.3s ease;
@@ -1611,13 +1633,13 @@ onBeforeUnmount(() => {
 }
 
 .time-range-group :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-  background: rgba(64, 158, 255, 0.2) !important;
-  color: #409eff !important;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15) !important;
+  background: rgba(0, 141, 230, 0.12) !important;
+  color: #006fc2 !important;
+  box-shadow: 0 2px 8px rgba(0, 141, 230, 0.12) !important;
 }
 
 .time-range-group :deep(.el-radio-button__inner:hover) {
-  color: #a0c4ff !important;
+  color: #008de6 !important;
 }
 
 /* ============ 图表卡片 ============ */
@@ -2150,23 +2172,23 @@ button.ctrl-btn {
   box-shadow: 0 0 6px rgba(245, 108, 108, 0.5);
 }
 
-/* 表格暗色主题 */
+/* 表格亮色主题 */
 .control-history-card :deep(.el-table) {
   --el-table-bg-color: transparent;
   --el-table-tr-bg-color: transparent;
-  --el-table-header-bg-color: rgba(255, 255, 255, 0.02);
-  --el-table-row-hover-bg-color: rgba(64, 158, 255, 0.04);
-  --el-table-border-color: transparent;
-  --el-table-text-color: #d0d0d8;
-  --el-table-header-text-color: #808090;
+  --el-table-header-bg-color: rgba(232, 246, 255, 0.82);
+  --el-table-row-hover-bg-color: rgba(0, 141, 230, 0.06);
+  --el-table-border-color: rgba(16, 126, 196, 0.1);
+  --el-table-text-color: #1d3148;
+  --el-table-header-text-color: #31516f;
 }
 
 .control-history-card :deep(.el-table__header-wrapper) {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(16, 126, 196, 0.12);
 }
 
 .control-history-card :deep(.el-table th.el-table__cell) {
-  background: rgba(255, 255, 255, 0.02) !important;
+  background: rgba(232, 246, 255, 0.82) !important;
   font-weight: 600;
   font-size: 12px;
   letter-spacing: 0.5px;
@@ -2175,7 +2197,7 @@ button.ctrl-btn {
 }
 
 .control-history-card :deep(.el-table td.el-table__cell) {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(16, 126, 196, 0.1);
   padding: 10px 8px;
   font-size: 13px;
 }
@@ -2279,6 +2301,352 @@ button.ctrl-btn {
 /* 斑马条纹 */
 .control-history-card :deep(.el-table__body tr.el-table__row--striped) {
   background: rgba(255, 255, 255, 0.015);
+}
+
+/* ============ 亮色详情页可读性修正 ============ */
+.device-detail-container {
+  background: transparent !important;
+  color: #1d3148;
+}
+
+.top-nav,
+.device-info-card,
+.health-detail-card,
+.telemetry-card,
+.chart-card,
+.control-panel,
+.control-history-card {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(0, 141, 230, 0.16) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 18px 42px rgba(14, 70, 120, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
+  color: #1d3148 !important;
+}
+
+.top-nav:hover,
+.device-info-card:hover,
+.health-detail-card:hover,
+.telemetry-card:hover,
+.chart-card:hover,
+.control-panel:hover,
+.control-history-card:hover {
+  border-color: rgba(0, 141, 230, 0.30) !important;
+  box-shadow: 0 20px 54px rgba(0, 126, 206, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.96) !important;
+}
+
+.device-info-card :deep(.el-card__body),
+.health-detail-card :deep(.el-card__body),
+.telemetry-card :deep(.el-card__body),
+.chart-card :deep(.el-card__body),
+.control-history-card :deep(.el-card__body) {
+  color: #1d3148 !important;
+}
+
+.back-btn,
+.nav-device-id,
+.update-time,
+.dev-info-left,
+.short-item,
+.info-cell,
+.time-range-group,
+.ctrl-status-bar,
+.ctrl-last-action,
+.ctrl-brightness-val,
+.ctrl-btn,
+.ctrl-dim-card,
+.dim-icon,
+.dim-value-wrap {
+  background: rgba(248, 252, 255, 0.88) !important;
+  border: 1px solid rgba(16, 126, 196, 0.14) !important;
+  color: #1d3148 !important;
+  border-radius: 8px !important;
+}
+
+.back-btn {
+  color: #006fc2 !important;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(0, 106, 170, 0.08) !important;
+}
+
+.back-btn:hover {
+  background: #ffffff !important;
+  border-color: rgba(0, 141, 230, 0.34) !important;
+  color: #008de6 !important;
+}
+
+.nav-device-name,
+.device-title,
+.card-header h3,
+.section-title h3,
+.history-header-left,
+.dim-label,
+.ctrl-btn-label,
+.info-value,
+.telemetry-value,
+.health-num {
+  color: #0d1b2d !important;
+  -webkit-text-fill-color: #0d1b2d !important;
+  background: none !important;
+  letter-spacing: 0 !important;
+}
+
+.device-title {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.nav-device-id,
+.nav-breadcrumb,
+.nav-breadcrumb .sep,
+.health-lbl,
+.short-item,
+.short-item svg,
+.info-label,
+.telemetry-label,
+.telemetry-value .unit,
+.dim-hint,
+.dim-unit,
+.dim-level-icon,
+.dim-slider-el :deep(.el-slider__marks-text),
+.ctrl-btn-hint,
+.ctrl-status-right,
+.time-cell,
+.time-icon,
+.control-history-card :deep(.el-table__empty-text) {
+  color: #40566f !important;
+  font-weight: 700;
+}
+
+.nav-breadcrumb .current,
+.ctrl-brightness-val {
+  color: #006fc2 !important;
+}
+
+.update-time {
+  color: #31516f !important;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.dev-info-left,
+.info-cell {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.info-cell:hover,
+.short-item:hover,
+.ctrl-btn:not(:disabled):hover,
+.ctrl-dim-card:not(.disabled):hover {
+  background: #ffffff !important;
+  border-color: rgba(0, 141, 230, 0.28) !important;
+  box-shadow: 0 14px 32px rgba(0, 126, 206, 0.12) !important;
+}
+
+.health-detail-body {
+  padding: 4px 24px 20px;
+}
+
+.health-overview {
+  padding: 12px 10px;
+  background: rgba(248, 252, 255, 0.88);
+  border: 1px solid rgba(16, 126, 196, 0.12);
+  border-radius: 8px;
+}
+
+.health-big-num {
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.health-big-lvl {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.health-suggestion {
+  color: #40566f !important;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.health-dim-row {
+  padding: 10px 0 12px;
+  border-bottom: 1px solid rgba(16, 126, 196, 0.10) !important;
+}
+
+.dim-name {
+  color: #31516f !important;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.dim-weight,
+.dim-score {
+  color: #31516f !important;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dim-reason {
+  color: #b96b10 !important;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dim-bar-wrap {
+  height: 7px;
+  background: rgba(210, 230, 244, 0.92) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 71, 120, 0.08);
+}
+
+.health-ring-wrap,
+.health-big-ring {
+  filter: drop-shadow(0 8px 18px rgba(0, 126, 206, 0.10));
+}
+
+.health-num {
+  font-size: 30px;
+}
+
+.telemetry-card {
+  padding: 24px 16px !important;
+}
+
+.telemetry-card:hover {
+  transform: translateY(-4px);
+}
+
+.telemetry-icon {
+  border: 1px solid rgba(16, 126, 196, 0.13);
+  background: rgba(248, 252, 255, 0.92) !important;
+}
+
+.telemetry-value {
+  font-size: 34px;
+  font-weight: 800;
+}
+
+.chart-card {
+  padding: 18px;
+}
+
+.time-range-group {
+  padding: 4px !important;
+}
+
+.time-range-group :deep(.el-radio-button__inner) {
+  color: #31516f !important;
+  font-weight: 700;
+}
+
+.ctrl-status-bar {
+  border-radius: 8px 8px 0 0 !important;
+  border-width: 0 0 1px 0 !important;
+  background: linear-gradient(180deg, rgba(236, 248, 255, 0.92), rgba(248, 252, 255, 0.86)) !important;
+}
+
+.ctrl-device-status,
+.ctrl-light-status,
+.history-count-badge,
+.status-tag {
+  font-weight: 800;
+  border: 1px solid rgba(16, 126, 196, 0.12);
+}
+
+.ctrl-device-status.is-online {
+  color: #13845c !important;
+  background: rgba(27, 169, 116, 0.12) !important;
+  border-color: rgba(27, 169, 116, 0.22);
+}
+
+.ctrl-device-status.is-offline,
+.ctrl-light-status.light-off {
+  color: #5f6f82 !important;
+  background: rgba(224, 235, 244, 0.80) !important;
+}
+
+.ctrl-light-status.light-on {
+  color: #a96b00 !important;
+  background: rgba(245, 158, 11, 0.13) !important;
+  border-color: rgba(245, 158, 11, 0.22);
+}
+
+.ctrl-btn,
+.ctrl-dim-card {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.ctrl-btn-icon {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(16, 126, 196, 0.12);
+  box-shadow: 0 8px 20px rgba(0, 106, 170, 0.08);
+}
+
+.ctrl-btn-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.ctrl-btn-label {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.ctrl-btn-hint {
+  font-size: 12px;
+}
+
+.ctrl-on.active {
+  background: rgba(27, 169, 116, 0.13) !important;
+  border-color: rgba(27, 169, 116, 0.30) !important;
+}
+
+.ctrl-off.active {
+  background: rgba(229, 72, 77, 0.10) !important;
+  border-color: rgba(229, 72, 77, 0.24) !important;
+}
+
+.dim-label {
+  font-size: 16px;
+}
+
+.dim-value-wrap {
+  background: rgba(255, 255, 255, 0.88) !important;
+}
+
+.dim-slider-el :deep(.el-slider__runway) {
+  background: rgba(210, 230, 244, 0.95) !important;
+}
+
+.dim-slider-el :deep(.el-slider__marks-text) {
+  font-size: 11px;
+}
+
+.control-history-card :deep(.el-card__header) {
+  background: linear-gradient(180deg, rgba(236, 248, 255, 0.95), rgba(222, 241, 255, 0.78)) !important;
+  border-bottom: 1px solid rgba(16, 126, 196, 0.14) !important;
+}
+
+.control-history-card :deep(.el-table th.el-table__cell) {
+  color: #31516f !important;
+  font-weight: 800;
+}
+
+.control-history-card :deep(.el-table td.el-table__cell),
+.cmd-cell {
+  color: #1d3148 !important;
+  font-weight: 600;
+}
+
+.control-history-card :deep(.el-table__body tr.el-table__row--striped) {
+  background: rgba(0, 141, 230, 0.035) !important;
 }
 
 /* ============ 响应式适配 ============ */

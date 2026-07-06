@@ -132,13 +132,13 @@ function buildChartOption(data) {
   return {
     backgroundColor: 'transparent',
     grid: { top: 30, bottom: 40, left: 50, right: 24 },
-    tooltip: { trigger: 'axis', backgroundColor: 'rgba(4,20,50,0.9)', borderColor: 'rgba(0,150,220,0.3)', textStyle: { color: '#d0eaf8', fontSize: 12 } },
-    legend: { top: 4, right: 0, textStyle: { color: 'rgba(140,190,220,0.7)', fontSize: 12 }, data: ['本日能耗', '上周同期'] },
-    xAxis: { type: 'category', data: data.labels, axisLine: { lineStyle: { color: 'rgba(0,120,200,0.2)' } }, axisLabel: { color: 'rgba(140,190,220,0.6)', fontSize: 11, interval: 2 }, splitLine: { show: false } },
-    yAxis: { type: 'value', name: 'kWh', nameTextStyle: { color: 'rgba(140,190,220,0.5)', fontSize: 11 }, axisLabel: { color: 'rgba(140,190,220,0.6)', fontSize: 11 }, splitLine: { lineStyle: { color: 'rgba(0,80,140,0.15)' } } },
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(255,255,255,0.96)', borderColor: 'rgba(0,141,230,0.24)', textStyle: { color: '#1d3148', fontSize: 12 } },
+    legend: { top: 4, right: 0, textStyle: { color: '#5e7187', fontSize: 12 }, data: ['本日能耗', '上周同期'] },
+    xAxis: { type: 'category', data: data.labels, axisLine: { lineStyle: { color: 'rgba(0,141,230,0.22)' } }, axisLabel: { color: '#6b7f93', fontSize: 11, interval: 2 }, splitLine: { show: false } },
+    yAxis: { type: 'value', name: 'kWh', nameTextStyle: { color: '#8a9bad', fontSize: 11 }, axisLabel: { color: '#6b7f93', fontSize: 11 }, splitLine: { lineStyle: { color: 'rgba(16,126,196,0.12)' } } },
     series: [
       { name: '本日能耗', type: 'line', data: data.current, smooth: true, symbol: 'none', lineStyle: { color: '#4dd0e1', width: 2.5 }, areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(77,208,225,0.25)' }, { offset: 1, color: 'rgba(77,208,225,0.02)' }]) } },
-      { name: '上周同期', type: 'line', data: data.lastWeek, smooth: true, symbol: 'none', lineStyle: { color: 'rgba(100,150,200,0.5)', width: 1.5, type: 'dashed' }, areaStyle: { color: 'transparent' } },
+      { name: '上周同期', type: 'line', data: data.lastWeek, smooth: true, symbol: 'none', lineStyle: { color: 'rgba(109,93,252,0.65)', width: 1.5, type: 'dashed' }, areaStyle: { color: 'transparent' } },
     ],
   }
 }
@@ -146,7 +146,7 @@ function buildChartOption(data) {
 function initChart(data) {
   if (!chartRef.value) return
   trendData = data
-  if (!chart) chart = echarts.init(chartRef.value, 'dark')
+  if (!chart) chart = echarts.init(chartRef.value)
   chart.setOption(scaleOption(buildChartOption(data)), true)
   handleChartResize()
 }
@@ -447,10 +447,12 @@ onUnmounted(() => {
 /* ── 地图搜索 ── */
 .map-search-select { width: 260px; }
 .map-search-select :deep(.el-input__wrapper) {
-  background: rgba(0,30,70,0.5); border-color: rgba(0,120,200,0.25); box-shadow: none;
+  background: rgba(255,255,255,0.9);
+  border: 1px solid rgba(0,141,230,0.18);
+  box-shadow: 0 8px 20px rgba(30,86,130,0.08);
 }
-.map-search-select :deep(.el-input__inner) { color: #d0eaf8; }
-.map-search-select :deep(.el-input__wrapper:hover) { border-color: rgba(77,208,225,0.4); }
+.map-search-select :deep(.el-input__inner) { color: #0d1b2d; }
+.map-search-select :deep(.el-input__wrapper:hover) { border-color: rgba(0,141,230,0.38); }
 
 /* ── 右侧导航 ── */
 .dp-nav {
