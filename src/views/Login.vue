@@ -91,7 +91,15 @@ function initCanvas() {
 
 // ─── 生命周期 ──────────────────────────────────────────────────────────────
 let cleanupCanvas = null
-onMounted(() => { cleanupCanvas = initCanvas() })
+onMounted(() => {
+  cleanupCanvas = initCanvas()
+  // 被"账号已停用"踢回登录页时显示提示
+  if (route.query.disabled === '1') {
+    errorMsg.value = route.query.msg
+      ? decodeURIComponent(route.query.msg)
+      : '账号已停用，请联系管理员'
+  }
+})
 onUnmounted(() => { cleanupCanvas?.() })
 
 // ─── Mock 降级（后端不可用时自动触发，对接真实接口后无需改动） ──────────────

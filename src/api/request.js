@@ -4,9 +4,12 @@
  * - 自动附加 Authorization: Bearer <token>
  * - HTTP 401 → 清除 Token 并跳回登录页
  * - 业务 code ≠ 200 → 抛出带 msg 的 Error，让调用方统一处理
+ * - 业务 code = 1003（账号已停用） → 清除 Token 并跳回登录页
  */
 import axios from 'axios'
 import { getToken, clearAuth } from './auth.js'
+
+const ACCOUNT_DISABLED_CODE = 1003  // 后端约定：账号已停用业务码
 
 const request = axios.create({
   // 开发模式下 baseURL 留空，由 Vite proxy 转发 /api 到 localhost:8080
@@ -34,6 +37,14 @@ request.interceptors.response.use(
 
     // 业务层错误（HTTP 200 但 code ≠ 200）
     if (res && typeof res.code === 'number' && res.code !== 200) {
+      // 账号已停用：清除认证并跳转到登录页
+      if (res.code === ACCOUNT_DISABLED_CODE) {
+        clearAuth()
+        const msg = encodeURIComponent(res.msg || '账号已停用')
+        window.location.href = `/login?disabled=1&msg=${msg}`
+        return
+      }
+
       const err = new Error(res.msg || '请求失败')
       err.bizCode = res.code
       err.bizData = res.data
