@@ -40,18 +40,25 @@ const navSections = [
 ]
 const activeSection = ref('sec-stats')
 let sectionObserver = null
+let manualScrolling = false
+let manualScrollTimer = null
 
 function scrollToSection(id) {
   const el = document.getElementById(id)
   if (!el) return
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   activeSection.value = id
+  // 暂停 Observer，防止平滑滚动过程中被其他区域抢走高亮
+  manualScrolling = true
+  clearTimeout(manualScrollTimer)
+  manualScrollTimer = setTimeout(() => { manualScrolling = false }, 800)
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function setupSectionObserver() {
   const root = document.querySelector('.screen-scale-content')
   if (!root) return
   sectionObserver = new IntersectionObserver((entries) => {
+    if (manualScrolling) return
     let best = null
     let bestRatio = 0
     entries.forEach(e => {
@@ -183,6 +190,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopScaleWatch?.()
+  clearTimeout(manualScrollTimer)
   window.removeEventListener('resize', handleChartResize)
   chart?.dispose()
   sectionObserver?.disconnect()
