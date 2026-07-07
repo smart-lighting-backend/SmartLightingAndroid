@@ -40,6 +40,25 @@ bin/
 
 ### VS Code ###
 .vscode/
+!.vscode/extensions.json
 
 ### Mac OS ###
 .DS_Store
+
+# Logs
+logs
+*.log
+
+# Dependencies
+node_modules
+
+# Env
+*.local
+.env
+
+# Editor
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

@@ -1,0 +1,982 @@
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: light;
+  --text-strong: #0d1b2d;
+  --text: #1d3148;
+  --text-soft: #40566f;
+  --text-faint: #60748a;
+  --page-bg: #f7fbff;
+  --surface: rgba(255, 255, 255, 0.86);
+  --surface-solid: #ffffff;
+  --surface-muted: rgba(241, 248, 255, 0.78);
+  --line: rgba(16, 126, 196, 0.16);
+  --line-strong: rgba(0, 145, 215, 0.28);
+  --primary: #008de6;
+  --primary-dark: #006fc2;
+  --primary-soft: rgba(0, 141, 230, 0.1);
+  --cyan: #16c7e8;
+  --green: #1ba974;
+  --amber: #f59e0b;
+  --red: #e5484d;
+  --violet: #6d5dfc;
+  --shadow-soft: 0 18px 42px rgba(30, 86, 130, 0.12);
+  --shadow-hover: 0 20px 54px rgba(0, 126, 206, 0.18);
+  --radius-card: 8px;
+  --radius-control: 7px;
+  --primary-gradient: linear-gradient(135deg, #0094ff 0%, #17c9df 52%, #4bd0a0 100%);
+
+  --el-color-primary: #008de6;
+  --el-color-primary-light-3: #39acef;
+  --el-color-primary-light-5: #7dccf5;
+  --el-color-primary-light-7: #b7e3fa;
+  --el-color-primary-light-8: #d3eefc;
+  --el-color-primary-light-9: #edf8ff;
+  --el-color-primary-dark-2: #006fc2;
+  --el-color-success: #1ba974;
+  --el-color-warning: #f59e0b;
+  --el-color-danger: #e5484d;
+  --el-bg-color: #ffffff;
+  --el-bg-color-overlay: rgba(255, 255, 255, 0.96);
+  --el-fill-color-light: #f5faff;
+  --el-fill-color-lighter: #f8fbff;
+  --el-border-color: rgba(16, 126, 196, 0.18);
+  --el-border-color-light: rgba(16, 126, 196, 0.14);
+  --el-border-color-lighter: rgba(16, 126, 196, 0.1);
+  --el-text-color-primary: #0d1b2d;
+  --el-text-color-regular: #1d3148;
+  --el-text-color-secondary: #40566f;
+  --el-text-color-placeholder: #6f8194;
+  --el-box-shadow-light: var(--shadow-soft);
+  --el-border-radius-base: var(--radius-control);
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(0, 141, 230, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 141, 230, 0.045) 1px, transparent 1px),
+    linear-gradient(135deg, #ffffff 0%, #f6fbff 48%, #edf7ff 100%);
+  background-size: 32px 32px, 32px 32px, 100% 100%;
+  color: var(--text);
+  font-family: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+body {
+  --scan-line: rgba(0, 154, 230, 0.2);
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  color: var(--text);
+}
+
+::selection {
+  color: #ffffff;
+  background: rgba(0, 141, 230, 0.78);
+}
+
+:focus-visible {
+  outline: 2px solid rgba(0, 141, 230, 0.5);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(218, 237, 250, 0.4);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(0, 141, 230, 0.45), rgba(22, 199, 232, 0.45));
+  border: 3px solid rgba(247, 251, 255, 0.95);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(0, 141, 230, 0.7), rgba(22, 199, 232, 0.7));
+}
+
+/* Page foundations */
+:where(
+  .screen-scale-wrapper,
+  .screen-scale-content,
+  .main-layout,
+  .main-body,
+  .page-content,
+  .login-page,
+  [class$="-page"],
+  [class*="-page "],
+  [class$="-container"],
+  [class*="-container "]
+) {
+  color: var(--text) !important;
+  background:
+    linear-gradient(rgba(0, 141, 230, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 141, 230, 0.04) 1px, transparent 1px),
+    linear-gradient(135deg, #ffffff 0%, #f7fbff 46%, #eef8ff 100%) !important;
+  background-size: 32px 32px, 32px 32px, 100% 100% !important;
+}
+
+.page-content,
+.screen-scale-content {
+  scroll-behavior: smooth;
+}
+
+/* High-signal surfaces */
+:where(
+  .el-card,
+  .el-dialog,
+  .el-drawer,
+  .el-popper,
+  .el-message-box,
+  [class$="-card"],
+  [class*="-card "],
+  [class$="-box"],
+  [class*="-box "],
+  .block-card,
+  .table-card,
+  .filter-bar,
+  .search-card,
+  .modal-panel,
+  .mock-panel,
+  .control-panel,
+  .assign-panel,
+  .chat-container,
+  .messages-area,
+  .input-area,
+  .suggestions,
+  .diagnose-bar,
+  .edge-log-item,
+  .district-panel,
+  .condition-card,
+  .action-check-item,
+  .sensor-cell,
+  .event-row,
+  .info-cell,
+  .info-item,
+  .device-info-item,
+  .detail-row,
+  .log-row,
+  .user-menu,
+  .dropdown-list,
+  .lp-addr-results,
+  .dm-iw
+) {
+  background: var(--surface) !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
+  box-shadow: var(--shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
+  backdrop-filter: blur(18px) saturate(1.22);
+}
+
+:where(
+  .el-card,
+  .el-dialog,
+  .el-drawer,
+  .el-message-box,
+  [class$="-card"],
+  [class*="-card "],
+  .block-card,
+  .table-card,
+  .filter-bar,
+  .search-card,
+  .modal-panel,
+  .mock-panel,
+  .control-panel,
+  .assign-panel,
+  .chat-container,
+  .district-panel,
+  .condition-card,
+  .action-check-item,
+  .sensor-cell,
+  .event-row,
+  .info-cell,
+  .info-item,
+  .device-info-item
+) {
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius-card) !important;
+}
+
+:where(
+  .el-card,
+  [class$="-card"],
+  [class*="-card "],
+  .block-card,
+  .table-card,
+  .filter-bar,
+  .search-card,
+  .district-panel,
+  .condition-card,
+  .action-check-item,
+  .sensor-cell
+) {
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease,
+    background 0.22s ease !important;
+}
+
+:where(
+  .el-card,
+  [class$="-card"],
+  [class*="-card "],
+  .block-card,
+  .table-card,
+  .filter-bar,
+  .search-card,
+  .district-panel,
+  .condition-card,
+  .action-check-item,
+  .sensor-cell
+):hover {
+  border-color: var(--line-strong) !important;
+  box-shadow: var(--shadow-hover), inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
+}
+
+.el-card__body {
+  color: var(--text) !important;
+}
+
+/* Typography */
+:where(
+  h1,
+  h2,
+  h3,
+  h4,
+  .page-title,
+  .section-title,
+  .card-title,
+  .tree-title,
+  .detail-title,
+  .device-title,
+  .title-text,
+  .panel-title,
+  .brand-title,
+  .top-brand,
+  .nav-device-name,
+  .mock-panel-title,
+  .lp-title,
+  .bi-title,
+  .bi-map-title,
+  .dp-name,
+  .device-name,
+  .user-name
+) {
+  color: var(--text-strong) !important;
+  letter-spacing: 0 !important;
+}
+
+:where(
+  .page-sub,
+  .page-desc,
+  .page-info,
+  .card-sub,
+  .brand-sub,
+  .stat-label,
+  .stat-hint,
+  .metric-label,
+  .metric-sub,
+  .info-label,
+  .detail-label,
+  .form-label,
+  .section-label,
+  .section-label-row,
+  .field-label,
+  .filter-item label,
+  .filter-group label,
+  .tree-search-icon,
+  .empty-hint,
+  .loading-state,
+  .empty-state,
+  .nav-loading,
+  .nav-empty,
+  .update-time,
+  .user-role,
+  .mock-panel-hint,
+  .lp-legend-item,
+  .bi-legend,
+  .dps-lbl,
+  .el-time,
+  .td-time,
+  .td-id,
+  .total-text
+) {
+  color: var(--text-soft) !important;
+}
+
+:where(
+  .stat-value,
+  .health-num,
+  .brightness-value,
+  .page-num,
+  .ac-title,
+  .ac-link,
+  .add-option-unit,
+  .param-bool,
+  .brightness-pct,
+  .pct-badge,
+  .lp-info strong,
+  .device-link,
+  .mock-count,
+  .mock-count-badge
+) {
+  color: var(--primary-dark) !important;
+}
+
+.section-title {
+  border-left-color: var(--primary) !important;
+}
+
+a,
+.router-link-active {
+  color: var(--primary-dark);
+}
+
+/* Inputs and selectors */
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select,
+  .el-input__wrapper,
+  .el-select__wrapper,
+  .el-textarea__inner,
+  .filter-input,
+  .filter-select,
+  .field-input,
+  .chat-input,
+  .device-select,
+  .node-select,
+  .form-input,
+  .tree-search-input,
+  .search-input,
+  .lp-addr-input,
+  .bi-edit-input
+) {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: var(--line) !important;
+  color: var(--text-strong) !important;
+  box-shadow: 0 0 0 1px var(--line), inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
+  border-radius: var(--radius-control) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+}
+
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select,
+  .el-input__wrapper,
+  .el-select__wrapper,
+  .el-textarea__inner,
+  .filter-input,
+  .filter-select,
+  .field-input,
+  .chat-input,
+  .device-select,
+  .node-select,
+  .form-input,
+  .tree-search-input,
+  .search-input,
+  .lp-addr-input
+):focus,
+:where(.el-input__wrapper, .el-select__wrapper):focus-within {
+  background: #ffffff !important;
+  border-color: rgba(0, 141, 230, 0.45) !important;
+  box-shadow: 0 0 0 3px rgba(0, 141, 230, 0.12), 0 0 0 1px rgba(0, 141, 230, 0.35) !important;
+}
+
+::placeholder,
+.el-input__inner::placeholder,
+.el-textarea__inner::placeholder {
+  color: var(--text-faint) !important;
+}
+
+.el-input__inner,
+.el-select__placeholder,
+.el-select__selected-item,
+.el-textarea__inner {
+  color: var(--text-strong) !important;
+}
+
+.el-select-dropdown,
+.el-picker-panel,
+.el-date-picker,
+.el-dropdown__popper {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: var(--line) !important;
+  box-shadow: var(--shadow-soft) !important;
+  color: var(--text) !important;
+}
+
+.el-select-dropdown__item,
+.el-picker-panel,
+.el-date-table td,
+.el-date-table th {
+  color: var(--text) !important;
+}
+
+.el-select-dropdown__item.hover,
+.el-select-dropdown__item:hover,
+.el-select-dropdown__item.selected {
+  background: rgba(0, 141, 230, 0.1) !important;
+  color: var(--primary-dark) !important;
+}
+
+/* Buttons */
+button {
+  letter-spacing: 0 !important;
+}
+
+:where(
+  .el-button,
+  [class$="-btn"],
+  [class*="-btn "],
+  .action-btn,
+  .level-tab,
+  .suggestion-chip,
+  .page-btn,
+  .mock-close-btn
+) {
+  background: rgba(255, 255, 255, 0.76) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--primary-dark) !important;
+  box-shadow: 0 8px 22px rgba(0, 106, 170, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+  border-radius: var(--radius-control) !important;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease !important;
+}
+
+:where(
+  .el-button:hover,
+  [class$="-btn"]:hover,
+  [class*="-btn "]:hover,
+  .action-btn:hover,
+  .level-tab:hover,
+  .suggestion-chip:hover,
+  .page-btn:hover,
+  .mock-close-btn:hover
+) {
+  background: #ffffff !important;
+  border-color: var(--line-strong) !important;
+  color: var(--primary) !important;
+  box-shadow: var(--shadow-hover) !important;
+}
+
+:where(
+  .login-btn,
+  .manual-btn,
+  .send-btn,
+  .save-btn,
+  .add-btn,
+  .btn-search,
+  .bi-btn-confirm,
+  .lp-btn-confirm,
+  .diagnose-btn,
+  .export-btn,
+  .detail-btn.primary,
+  .el-button--primary
+) {
+  background: var(--primary-gradient) !important;
+  border: 1px solid rgba(0, 141, 230, 0.18) !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 30px rgba(0, 141, 230, 0.23) !important;
+}
+
+:where(
+  .login-btn:hover:not(:disabled),
+  .manual-btn:hover,
+  .send-btn:hover:not(:disabled),
+  .save-btn:hover:not(:disabled),
+  .add-btn:hover,
+  .btn-search:hover,
+  .bi-btn-confirm:hover,
+  .lp-btn-confirm:hover,
+  .diagnose-btn:hover:not(:disabled),
+  .export-btn:hover,
+  .detail-btn.primary:hover,
+  .el-button--primary:hover
+) {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px rgba(0, 141, 230, 0.3) !important;
+}
+
+:where(button:disabled, .el-button.is-disabled, [class$="-btn"]:disabled, [class*="-btn "]:disabled) {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+/* Navigation shell */
+.sidebar {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-right: 1px solid var(--line) !important;
+  box-shadow: 18px 0 36px rgba(30, 86, 130, 0.08) !important;
+  backdrop-filter: blur(22px) saturate(1.2);
+}
+
+.top-bar {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-bottom: 1px solid var(--line) !important;
+  box-shadow: 0 12px 28px rgba(30, 86, 130, 0.08) !important;
+  backdrop-filter: blur(18px) saturate(1.18);
+}
+
+.sidebar-brand,
+.sidebar-user,
+.diagnose-bar,
+.suggestions,
+.input-area,
+.bi-header,
+.bi-footer,
+.bi-map-header,
+.bi-map-footer,
+.lp-topbar,
+.lp-bottombar,
+.card-header,
+.tree-header,
+.device-header,
+.pagination-bar {
+  border-color: var(--line) !important;
+}
+
+.brand-logo,
+.user-avatar,
+.stat-icon,
+.msg-avatar,
+.panel-icon,
+.sc-icon,
+.logo-ring {
+  background: linear-gradient(135deg, rgba(0, 141, 230, 0.12), rgba(22, 199, 232, 0.08)) !important;
+  border: 1px solid var(--line-strong) !important;
+  color: var(--primary-dark) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 10px 24px rgba(0, 126, 206, 0.12) !important;
+}
+
+.nav-item,
+.top-nav-link,
+.dp-nav-item,
+.user-menu-item {
+  color: var(--text-soft) !important;
+  border: 1px solid transparent !important;
+}
+
+.nav-item:hover,
+.top-nav-link:hover,
+.dp-nav-item:hover,
+.user-menu-item:hover,
+.sidebar-user:hover {
+  background: rgba(0, 141, 230, 0.08) !important;
+  color: var(--primary-dark) !important;
+}
+
+.nav-item.active,
+.top-nav-link.active,
+.dp-nav-item.active,
+.level-tab.active {
+  background: linear-gradient(135deg, rgba(0, 141, 230, 0.14), rgba(22, 199, 232, 0.09)) !important;
+  border-color: rgba(0, 141, 230, 0.24) !important;
+  color: var(--primary-dark) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 10px 24px rgba(0, 126, 206, 0.1) !important;
+}
+
+.nav-item.active::before {
+  background: var(--primary-gradient) !important;
+}
+
+.nav-dot,
+.dp-nav-dot,
+.badge-dot {
+  box-shadow: 0 0 14px currentColor !important;
+}
+
+/* Tables */
+.el-table,
+.warn-table,
+.bi-table,
+.log-card,
+.area-device-table,
+.batch-device-table {
+  --el-table-border-color: rgba(16, 126, 196, 0.12) !important;
+  --el-table-header-bg-color: rgba(232, 246, 255, 0.82) !important;
+  --el-table-header-text-color: #31516f !important;
+  --el-table-text-color: var(--text) !important;
+  --el-table-row-hover-bg-color: rgba(0, 141, 230, 0.06) !important;
+  --el-table-bg-color: transparent !important;
+  --el-table-tr-bg-color: transparent !important;
+  background: transparent !important;
+  color: var(--text) !important;
+}
+
+.el-table th.el-table__cell,
+.warn-table th,
+.bi-table th {
+  background: linear-gradient(180deg, rgba(236, 248, 255, 0.95), rgba(222, 241, 255, 0.78)) !important;
+  color: #31516f !important;
+  border-bottom-color: rgba(16, 126, 196, 0.14) !important;
+}
+
+.el-table tr,
+.el-table td.el-table__cell,
+.warn-table td,
+.bi-table td,
+.table-row td {
+  background: transparent !important;
+  color: var(--text) !important;
+  border-color: rgba(16, 126, 196, 0.1) !important;
+}
+
+.el-table__body tr:hover > td.el-table__cell,
+.table-row:hover td,
+.log-row:hover,
+.bi-cell-editable:hover {
+  background: rgba(0, 141, 230, 0.055) !important;
+}
+
+/* Overlays, modals and map shells */
+.modal-overlay,
+.bi-overlay,
+.bi-map-overlay,
+.lp-overlay,
+.el-overlay {
+  background: rgba(234, 244, 252, 0.72) !important;
+  backdrop-filter: blur(14px) saturate(1.08);
+}
+
+.lp-map-wrap,
+.dm-wrapper,
+.bi-map-body,
+.bi-map-container,
+.dm-container,
+.lp-map {
+  background: #ffffff !important;
+}
+
+.dm-overlay,
+.lp-loading,
+.bi-map-loading {
+  background: rgba(255, 255, 255, 0.72) !important;
+  color: var(--text-soft) !important;
+}
+
+.dm-iw-name {
+  color: var(--text-strong) !important;
+  border-bottom-color: var(--line) !important;
+}
+
+.dm-iw-link {
+  color: var(--primary-dark) !important;
+}
+
+/* Login */
+.login-page {
+  background:
+    linear-gradient(rgba(0, 141, 230, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 141, 230, 0.055) 1px, transparent 1px),
+    linear-gradient(135deg, #ffffff 0%, #f8fcff 50%, #eaf7ff 100%) !important;
+  background-size: 34px 34px, 34px 34px, 100% 100% !important;
+}
+
+.bg-glow {
+  display: none !important;
+}
+
+.bg-canvas {
+  opacity: 0.7 !important;
+  mix-blend-mode: multiply;
+}
+
+.scan-line {
+  height: 1px !important;
+  background: linear-gradient(90deg, transparent, rgba(0, 141, 230, 0.38), rgba(22, 199, 232, 0.32), transparent) !important;
+}
+
+.login-page .brand-title {
+  background: linear-gradient(135deg, #0d1b2d 0%, #008de6 48%, #17c9df 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: none !important;
+}
+
+.brand-watermark {
+  color: rgba(0, 141, 230, 0.12) !important;
+}
+
+.card-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(0, 141, 230, 0.48), rgba(22, 199, 232, 0.38), transparent) !important;
+}
+
+.input-icon,
+.toggle-pwd,
+.forgot-link {
+  color: var(--primary-dark) !important;
+}
+
+.checkbox-custom,
+.real-checkbox + .custom-check {
+  background: #ffffff !important;
+  border-color: var(--line-strong) !important;
+}
+
+.checkbox-input:checked + .checkbox-custom,
+.real-checkbox:checked + .custom-check {
+  background: rgba(0, 141, 230, 0.12) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Progress, sliders and console-like blocks */
+input[type="range"],
+.brightness-slider {
+  accent-color: var(--primary) !important;
+}
+
+.brightness-slider {
+  background: linear-gradient(to right, var(--primary) 0%, var(--cyan) var(--val, 75%), rgba(197, 222, 238, 0.8) var(--val, 75%)) !important;
+}
+
+.district-progress {
+  background: rgba(197, 222, 238, 0.85) !important;
+}
+
+.prog-fill {
+  background: var(--primary-gradient) !important;
+}
+
+.console-box,
+.manual-mode-banner,
+.bi-table-wrap,
+.log-card,
+.timeline,
+.message-content,
+.remark-input {
+  background: rgba(248, 252, 255, 0.82) !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
+}
+
+.console-time,
+.console-line.cmd .console-text,
+.console-line.system .console-text {
+  color: var(--primary-dark) !important;
+}
+
+.console-text,
+.ac-detail,
+.log-action,
+.er-meta {
+  color: var(--text) !important;
+}
+
+/* Status colors kept vivid on white */
+.warn,
+.stat-value.warn,
+.log-level-badge.error,
+.level-badge.critical,
+.status-text.error,
+.bi-err,
+.bi-err-cell,
+.lp-warn,
+.dm-error,
+.error-state,
+.console-line.error .console-text {
+  color: var(--red) !important;
+}
+
+.warning,
+.log-level-badge.warn,
+.level-badge.warning,
+.status-text.pending,
+.dps-val.warn,
+.manual-icon,
+.unlock-btn,
+.error-tip {
+  color: var(--amber) !important;
+}
+
+.online,
+.good,
+.stat-hint.online,
+.stat-hint.good,
+.dps-val.online,
+.log-level-badge.info,
+.level-badge.info,
+.status-text.resolved,
+.bi-ok,
+.el-match {
+  color: var(--green) !important;
+}
+
+.el-nomatch,
+.dps-val.offline {
+  color: var(--text-faint) !important;
+}
+
+.log-level-badge,
+.level-badge,
+.status-tag,
+.dev-status-tag,
+.region-tag,
+.pct-badge,
+.mock-count-badge {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border-color: var(--line) !important;
+}
+
+/* Lightweight sci-fi edge accents without changing layout */
+.stat-card,
+.block-card,
+.chart-card,
+.table-card,
+.login-card,
+.modal-panel,
+.el-card {
+  position: relative;
+}
+
+.stat-card::after,
+.block-card::after,
+.chart-card::after,
+.table-card::after,
+.login-card::after,
+.modal-panel::after,
+.el-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 18px;
+  right: 18px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(0, 141, 230, 0.36), rgba(22, 199, 232, 0.28), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Readability pass: legacy dark-theme styles used translucent cyan text,
+   which becomes too faint on the new white base. */
+:where(
+  .page-subtitle,
+  .page-sub,
+  .page-desc,
+  .page-info,
+  .card-sub,
+  .brand-sub,
+  .form-hint,
+  .auto-hint,
+  .bi-hint,
+  .bi-template,
+  .bi-hint-edit,
+  .bi-legend,
+  .lp-searching,
+  .lp-legend-item,
+  .update-time,
+  .sc-label,
+  .sc-unit,
+  .er-empty,
+  .metric-sub,
+  .block-empty,
+  .el-time,
+  .el-nomatch,
+  .dps-lbl,
+  .dp-nav-title,
+  .dp-nav-item,
+  .dim-weight,
+  .dc-location,
+  .metric-label,
+  .area-binding-label,
+  .batch-area-hint,
+  .td-snapshot,
+  .empty-cell,
+  .sc-stats,
+  .toggle-label.inactive,
+  .empty-hint,
+  .condition-desc,
+  .add-option-desc,
+  .add-option-empty,
+  .slider-marks,
+  .total-text,
+  .page-ellipsis,
+  .dash,
+  .loading-state,
+  .loading-row,
+  .empty-state,
+  .nav-loading,
+  .nav-empty,
+  .user-role,
+  .mock-panel-hint,
+  .tree-path,
+  .no-code,
+  .time-cell,
+  .filter-item label,
+  .filter-group label,
+  .section-label,
+  .section-label-row,
+  .field-label,
+  .info-label,
+  .detail-label
+) {
+  color: var(--text-soft) !important;
+}
+
+:where(
+  .el-form-item__label,
+  .el-checkbox__label,
+  .el-radio__label,
+  .el-pagination,
+  .el-pagination button,
+  .el-pagination span:not([class*="suffix"]),
+  .el-select__placeholder,
+  .el-input__count,
+  .el-upload__tip,
+  .el-tree-node__label,
+  .el-table .cell
+) {
+  color: var(--text) !important;
+}
+
+:where(
+  input::placeholder,
+  textarea::placeholder,
+  .el-input__inner::placeholder,
+  .el-textarea__inner::placeholder,
+  .filter-input::placeholder,
+  .search-input::placeholder,
+  .tree-search-input::placeholder,
+  .chat-input::placeholder,
+  .field-input::placeholder,
+  .lp-addr-input::placeholder
+) {
+  color: #6f8194 !important;
+  opacity: 1 !important;
+}
