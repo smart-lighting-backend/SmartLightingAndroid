@@ -1,3 +1,22 @@
 <resources>
     <string name="app_name">智慧路灯</string>
+    <string name="app_title">智慧路灯管理系统</string>
+    <string name="app_subtitle">移动巡检与控制终端</string>
+    <string name="tab_dashboard">首页</string>
+    <string name="tab_devices">设备</string>
+    <string name="tab_analytics">报表</string>
+    <string name="tab_assistant">助手</string>
+    <string name="tab_alarms">告警</string>
+    <string name="tab_events">事件</string>
+    <string name="login_username">用户名</string>
+    <string name="login_password">密码</string>
+    <string name="login_btn">登录</string>
+    <string name="login_expired">登录已过期，请重新登录</string>
+    <string name="logout_btn">退出</string>
+    <string name="loading">加载中...</string>
+    <string name="no_data">暂无数据</string>
+    <string name="load_failed">加载失败</string>
+    <string name="search">搜索</string>
+    <string name="confirm">确认</string>
+    <string name="cancel">取消</string>
 </resources>

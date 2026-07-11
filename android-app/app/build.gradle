@@ -1,5 +1,16 @@
 plugins {
     id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.compose'
+    id 'com.google.devtools.ksp'
+    id 'com.google.dagger.hilt.android'
+}
+
+// Load secrets from secrets.properties (gitignored)
+def secretsFile = rootProject.file('secrets.properties')
+def secrets = new Properties()
+if (secretsFile.exists()) {
+    secrets.load(new FileInputStream(secretsFile))
 }
 
 android {
@@ -12,10 +23,64 @@ android {
         targetSdk 35
         versionCode 1
         versionName '1.0'
+
+        buildConfigField 'String', 'AMAP_KEY', "\"${secrets.getProperty('AMAP_KEY', '')}\""
+        buildConfigField 'String', 'AMAP_SECURITY_CODE', "\"${secrets.getProperty('AMAP_SECURITY_CODE', '')}\""
+
+        manifestPlaceholders = [
+            AMAP_KEY: secrets.getProperty('AMAP_KEY', '')
+        ]
+    }
+
+    buildFeatures {
+        compose true
+        buildConfig true
     }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+
+    kotlinOptions { jvmTarget = '17' }
+}
+
+dependencies {
+    // Compose BOM
+    implementation platform('androidx.compose:compose-bom:2024.12.01')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-extended'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+
+    // Core
+    implementation 'androidx.core:core-ktx:1.15.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7'
+    implementation 'androidx.activity:activity-compose:1.9.3'
+
+    // Navigation
+    implementation 'androidx.navigation:navigation-compose:2.8.5'
+
+    // Hilt
+    implementation 'com.google.dagger:hilt-android:2.51.1'
+    ksp 'com.google.dagger:hilt-compiler:2.51.1'
+    implementation 'androidx.hilt:hilt-navigation-compose:1.2.0'
+
+    // Retrofit + OkHttp + Moshi
+    implementation 'com.squareup.retrofit2:retrofit:2.11.0'
+    implementation 'com.squareup.retrofit2:converter-moshi:2.11.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
+    implementation 'com.squareup.moshi:moshi-kotlin:1.15.1'
+    ksp 'com.squareup.moshi:moshi-kotlin-codegen:1.15.1'
+
+    // DataStore
+    implementation 'androidx.datastore:datastore-preferences:1.1.1'
+
+    // AMap 3D Map SDK — 高德地图
+    implementation 'com.amap.api:3dmap:10.0.600'
+
 }
