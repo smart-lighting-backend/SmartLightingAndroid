@@ -641,7 +641,7 @@ onMounted(async () => {
  }, { interval: 12000 })
 });
 
-// 路由参数变化时（如 /devices/SL-001 → /devices/SL-002）重新加载
+// 路由参数变化时（如 /devices/SL_001 → /devices/SL_002）重新加载
 watch(() => route.params.id, async (newId) => {
   if (newId && newId !== deviceId.value) {
     deviceId.value = newId;

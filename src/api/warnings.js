@@ -46,14 +46,14 @@ export const ALARM_TYPE_MAP = {
 
 // ── Mock 数据 ─────────────────────────────────────────────────────────────
 const MOCK_ALARMS = [
-  { id: 1, deviceId: 'SL-001', type: 'FAULT',    level: 'CRITICAL', status: 'ACTIVE',       reason: '电源模块输出电压异常，超出额定范围 ±15%',                    startAt: '2023-10-27T14:32:05', recoverAt: null,                  handler: null },
-  { id: 2, deviceId: 'SL-003', type: 'OFFLINE',  level: 'MAJOR',    status: 'ACKNOWLEDGED', reason: '心跳中断超过 5 分钟，最后心跳时间：2023-10-27 12:10:00',      startAt: '2023-10-27T12:15:22', recoverAt: null,                  handler: '张工' },
-  { id: 3, deviceId: 'SL-004', type: 'VISION',   level: 'MINOR',    status: 'RECOVERED',    reason: '摄像头视场被轻微遮挡，影像质量下降',                          startAt: '2023-10-26T18:40:11', recoverAt: '2023-10-26T19:00:00', handler: 'system' },
-  { id: 4, deviceId: 'SL-005', type: 'SECURITY', level: 'CRITICAL', status: 'ACKNOWLEDGED', reason: '检测到设备门被非授权方式打开',                                startAt: '2023-10-26T03:12:55', recoverAt: null,                  handler: '安保组-王五' },
-  { id: 5, deviceId: 'SL-006', type: 'FAULT',    level: 'WARNING',  status: 'RECOVERED',    reason: '驱动板温度持续超过阈值，触发降功率保护',                      startAt: '2023-10-25T22:08:33', recoverAt: '2023-10-25T23:00:00', handler: '李工' },
-  { id: 6, deviceId: 'SL-007', type: 'OFFLINE',  level: 'MAJOR',    status: 'RECOVERED',    reason: '设备未上报心跳，判定为离线',                                  startAt: '2023-10-25T18:50:11', recoverAt: '2023-10-25T19:30:00', handler: 'system' },
-  { id: 7, deviceId: 'SL-008', type: 'VISION',   level: 'INFO',     status: 'RECOVERED',    reason: '夜间巡检图像亮度异常，疑似灯具衰减',                          startAt: '2023-10-25T02:33:40', recoverAt: '2023-10-25T08:00:00', handler: '赵工' },
-  { id: 8, deviceId: 'SL-001', type: 'SECURITY', level: 'CRITICAL', status: 'RECOVERED',    reason: '检测到可疑人员在设备周围长时间徘徊',                          startAt: '2023-10-24T23:15:18', recoverAt: '2023-10-24T23:45:00', handler: '安保组' },
+  { id: 1, deviceId: 'SL_001', type: 'FAULT',    level: 'CRITICAL', status: 'ACTIVE',       reason: '电源模块输出电压异常，超出额定范围 ±15%',                    startAt: '2023-10-27T14:32:05', recoverAt: null,                  handler: null },
+  { id: 2, deviceId: 'SL_003', type: 'OFFLINE',  level: 'MAJOR',    status: 'ACKNOWLEDGED', reason: '心跳中断超过 5 分钟，最后心跳时间：2023-10-27 12:10:00',      startAt: '2023-10-27T12:15:22', recoverAt: null,                  handler: '张工' },
+  { id: 3, deviceId: 'SL_004', type: 'VISION',   level: 'MINOR',    status: 'RECOVERED',    reason: '摄像头视场被轻微遮挡，影像质量下降',                          startAt: '2023-10-26T18:40:11', recoverAt: '2023-10-26T19:00:00', handler: 'system' },
+  { id: 4, deviceId: 'SL_005', type: 'SECURITY', level: 'CRITICAL', status: 'ACKNOWLEDGED', reason: '检测到设备门被非授权方式打开',                                startAt: '2023-10-26T03:12:55', recoverAt: null,                  handler: '安保组-王五' },
+  { id: 5, deviceId: 'SL_006', type: 'FAULT',    level: 'WARNING',  status: 'RECOVERED',    reason: '驱动板温度持续超过阈值，触发降功率保护',                      startAt: '2023-10-25T22:08:33', recoverAt: '2023-10-25T23:00:00', handler: '李工' },
+  { id: 6, deviceId: 'SL_007', type: 'OFFLINE',  level: 'MAJOR',    status: 'RECOVERED',    reason: '设备未上报心跳，判定为离线',                                  startAt: '2023-10-25T18:50:11', recoverAt: '2023-10-25T19:30:00', handler: 'system' },
+  { id: 7, deviceId: 'SL_008', type: 'VISION',   level: 'INFO',     status: 'RECOVERED',    reason: '夜间巡检图像亮度异常，疑似灯具衰减',                          startAt: '2023-10-25T02:33:40', recoverAt: '2023-10-25T08:00:00', handler: '赵工' },
+  { id: 8, deviceId: 'SL_001', type: 'SECURITY', level: 'CRITICAL', status: 'RECOVERED',    reason: '检测到可疑人员在设备周围长时间徘徊',                          startAt: '2023-10-24T23:15:18', recoverAt: '2023-10-24T23:45:00', handler: '安保组' },
 ]
 
 async function safeCall(apiFn, mockData, endpoint) {

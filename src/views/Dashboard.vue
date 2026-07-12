@@ -1,18 +1,14 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { fetchDashboardStats, fetchEnergyTrend, fetchDistrictData, fetchEdgeStatus, triggerEdgeSimulation, fetchEdgeRecent, triggerEnergyCalc, genTestData } from '../api/dashboard.js'
+import { fetchDashboardStats, fetchEnergyTrend, triggerEnergyCalc, genTestData } from '../api/dashboard.js'
 import { fetchAllDevicesForMap } from '../api/devices.js'
 import { useChartScale } from '../composables/useChartScale.js'
-import { useAutoRefresh } from '../composables/useAutoRefresh.js'
+
 import DeviceMap from '../components/DeviceMap.vue'
 import * as echarts from 'echarts'
 
 const { scaleOption, onScaleChange } = useChartScale()
 const stats = ref({})
-const edgeStatus = ref({})
-const edgeRecent = ref([])
-const edgeLoading = ref(false)
-const districts = ref([])
 const chartRef = ref(null)
 let chart = null
 let trendData = null
@@ -33,9 +29,7 @@ function onMapSearchSelect(deviceId) { highlightDeviceId.value = deviceId }
 // ── 右侧导航 ──
 const navSections = [
   { id: 'sec-stats',   label: '统计概览',     icon: '◆' },
-  { id: 'sec-edge',    label: '边缘AI决策',    icon: '◇' },
   { id: 'sec-energy',  label: '能耗走势',       icon: '◇' },
-  { id: 'sec-district',label: '分区设备状态',   icon: '◇' },
   { id: 'sec-map',     label: '设备分布地图',   icon: '◇' },
 ]
 const activeSection = ref('sec-stats')
@@ -101,38 +95,6 @@ async function handleGenData() {
   } finally { genLoading.value = false }
 }
 
-async function refreshEdgeStatus() {
-  try {
-    const [s, r] = await Promise.all([fetchEdgeStatus(), fetchEdgeRecent()])
-    edgeStatus.value = s.data || {}
-    edgeRecent.value = r.data || []
-  } catch {}
-}
-
-async function refreshLiveData() {
-  try {
-    const [s, e, r] = await Promise.all([
-      fetchDashboardStats(),
-      fetchEdgeStatus(),
-      fetchEdgeRecent(),
-    ])
-    stats.value = s.data || {}
-    edgeStatus.value = e.data || {}
-    edgeRecent.value = r.data || []
-  } catch {}
-}
-
-async function handleTriggerEdge() {
-  edgeLoading.value = true
-  try {
-    const res = await triggerEdgeSimulation()
-    edgeStatus.value = res.data || {}
-    await refreshEdgeStatus()
-  } catch (e) {
-    alert('边缘模拟失败: ' + (e.response?.data?.msg || e.message))
-  } finally { edgeLoading.value = false }
-}
-
 function handleChartResize() { chart?.resize() }
 
 function buildChartOption(data) {
@@ -160,13 +122,10 @@ function initChart(data) {
 
 onMounted(async () => {
   try {
-    const [s, t, d, e] = await Promise.all([
-      fetchDashboardStats(), fetchEnergyTrend(), fetchDistrictData(), fetchEdgeStatus(),
+    const [s, t] = await Promise.all([
+      fetchDashboardStats(), fetchEnergyTrend(),
     ])
     stats.value = s.data || {}
-    districts.value = d.data || []
-    edgeStatus.value = e.data || {}
-    refreshEdgeStatus()
     fetchAllDevicesForMap().then(list => {
       allDevices.value = Array.isArray(list) ? list : (list?.records || [])
     }).catch(() => {})
@@ -181,8 +140,6 @@ onMounted(async () => {
     stopScaleWatch = onScaleChange(() => initChart(trendData))
     window.addEventListener('resize', handleChartResize)
     nextTick(setupSectionObserver)
-    // 统计卡片 + 边缘AI 每 45 秒自动刷新
-    useAutoRefresh(refreshLiveData, { interval: 45000 })
   } catch (e) {
     console.error('[Dashboard] onMounted ERROR:', e.message, e.stack)
   }
@@ -246,39 +203,6 @@ onUnmounted(() => {
               <div class="stat-hint warn-hint" @click="$router.push('/warning?status=ACTIVE')" style="cursor:pointer">点击查看 →</div>
             </div>
           </div>
-          <div class="stat-card edge">
-            <div class="stat-icon edge-ai">
-              <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="3" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="12" r="1.5" fill="currentColor"/><circle cx="15" cy="12" r="1.5" fill="currentColor"/><path d="M9 17h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            </div>
-            <div class="stat-body">
-              <div class="stat-value">{{ edgeStatus.totalDecisions || 0 }}</div>
-              <div class="stat-label">
-                边缘AI决策
-                <button class="edge-trigger-btn" :disabled="edgeLoading" @click="handleTriggerEdge" title="手动触发一次边缘决策模拟">
-                  {{ edgeLoading ? '...' : '▶' }}
-                </button>
-              </div>
-              <div class="stat-hint" :class="edgeStatus.hitCount > 0 ? 'good' : ''">
-                {{ edgeStatus.hitCount > 0 ? '命中 ' + edgeStatus.hitCount + ' 次' : '模拟运行中' }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 边缘AI决策 -->
-      <section id="sec-edge" class="dp-section">
-        <h2 class="section-title">边缘AI决策</h2>
-        <div class="block-card">
-          <div class="edge-log-list" v-if="edgeRecent.length">
-            <div v-for="(r, i) in edgeRecent.slice(0, 6)" :key="i" class="edge-log-item">
-              <span class="el-time">{{ r.createTime ? r.createTime.replace('T',' ').slice(5,16) : '--' }}</span>
-              <span class="el-device">{{ r.deviceId }}</span>
-              <span :class="r.matchedPolicy ? 'el-match' : 'el-nomatch'">{{ r.matchedPolicy || '未命中' }}</span>
-              <span class="el-action">{{ r.actionTaken || '—' }}</span>
-            </div>
-          </div>
-          <div v-else class="block-empty">暂无边缘决策记录</div>
         </div>
       </section>
 
@@ -294,26 +218,6 @@ onUnmounted(() => {
         </div>
         <div class="block-card">
           <div ref="chartRef" class="chart-area"></div>
-        </div>
-      </section>
-
-      <!-- 分区设备状态 -->
-      <section id="sec-district" class="dp-section">
-        <h2 class="section-title">分区设备状态</h2>
-        <div class="block-card">
-          <div class="district-grid">
-            <div class="district-panel" v-for="d in districts" :key="d.name">
-              <div class="dp-name">{{ d.name }}</div>
-              <div class="dp-stats">
-                <div class="dps-item"><span class="dps-val online">{{ d.online }}</span><span class="dps-lbl">在线</span></div>
-                <div class="dps-item"><span class="dps-val offline">{{ d.offline }}</span><span class="dps-lbl">离线</span></div>
-                <div class="dps-item"><span class="dps-val warn">{{ d.warning }}</span><span class="dps-lbl">告警</span></div>
-              </div>
-              <div class="district-progress">
-                <div class="prog-fill" :style="{ width: (d.online / (d.online+d.offline+d.warning) * 100) + '%' }"></div>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -387,7 +291,7 @@ onUnmounted(() => {
 .section-actions { display: flex; align-items: center; gap: 10px; }
 
 /* ── 统计卡片 ── */
-.stats-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 24px; }
+.stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 24px; }
 .stat-card {
   background: rgba(8,20,45,0.8); border: 1px solid rgba(0,120,200,0.15);
   border-radius: 16px; padding: 32px 28px;
@@ -404,7 +308,6 @@ onUnmounted(() => {
 .stat-icon.online-rate { background: rgba(76,175,80,0.12); color: #4caf50; }
 .stat-icon.energy      { background: rgba(255,167,38,0.12); color: #ffa726; }
 .stat-icon.alert       { background: rgba(239,83,80,0.12); color: #ef5350; }
-.stat-icon.edge-ai     { background: rgba(0,200,180,0.12); color: #00c8b4; }
 .stat-value { font-size: calc(42px * var(--scale-ratio, 1)); font-weight: 700; color: #e0f4ff; line-height: 1; margin-bottom: 6px; }
 .stat-value.warn { color: #ef5350; }
 .stat-label { font-size: 17px; color: rgba(140,190,220,0.65); margin-bottom: 6px; display: flex; align-items: center; }
@@ -420,37 +323,8 @@ onUnmounted(() => {
 }
 .block-empty { color: rgba(140,190,220,0.4); font-size: 17px; text-align: center; padding: 28px 0; }
 
-/* ── 边缘AI ── */
-.edge-log-list { display: flex; flex-direction: column; gap: 8px; }
-.edge-log-item {
-  display: flex; align-items: center; gap: 16px; padding: 14px 16px;
-  background: rgba(0,30,70,0.3); border-radius: 8px; font-size: 16px;
-}
-.el-time { color: rgba(140,190,220,0.5); font-family: monospace; min-width: 70px; }
-.el-device { color: rgba(140,190,220,0.75); font-weight: 600; min-width: 70px; }
-.el-match { color: #4caf82; flex: 1; }
-.el-nomatch { color: rgba(140,190,220,0.35); flex: 1; }
-.el-action { color: rgba(200,220,240,0.6); font-family: monospace; }
-
 /* ── 图表 ── */
 .chart-area { width: 100%; height: 420px; }
-
-/* ── 分区 ── */
-.district-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 22px; }
-.district-panel {
-  background: rgba(0,30,70,0.3); border-radius: 10px; padding: 22px 24px;
-  border: 1px solid rgba(0,120,200,0.1);
-}
-.dp-name { font-size: 18px; font-weight: 600; color: rgba(190,220,245,0.9); margin-bottom: 14px; }
-.dp-stats { display: flex; gap: 28px; margin-bottom: 14px; }
-.dps-item { display: flex; align-items: center; gap: 8px; }
-.dps-val { font-size: 22px; font-weight: 700; }
-.dps-val.online { color: #4caf82; }
-.dps-val.offline { color: rgba(140,190,220,0.6); }
-.dps-val.warn { color: #ffa726; }
-.dps-lbl { font-size: 14px; color: rgba(140,190,220,0.45); }
-.district-progress { height: 6px; background: rgba(0,80,140,0.3); border-radius: 3px; overflow: hidden; }
-.prog-fill { height: 100%; background: linear-gradient(90deg, #4dd0e1, #4caf50); border-radius: 3px; transition: width 0.8s ease; }
 
 /* ── 地图搜索 ── */
 .map-search-select { width: 260px; }
@@ -491,15 +365,6 @@ onUnmounted(() => {
   box-shadow: 0 0 8px currentColor;
 }
 
-/* ── 其他 ── */
-.edge-trigger-btn {
-  display: inline-block; margin-left: 8px; width: 26px; height: 26px;
-  background: rgba(0,200,180,0.15); border: 1px solid rgba(0,200,180,0.3);
-  border-radius: 50%; color: rgba(150,240,230,0.9); font-size: 12px;
-  cursor: pointer; transition: all 0.2s; vertical-align: middle;
-}
-.edge-trigger-btn:hover:not(:disabled) { background: rgba(0,200,180,0.3); }
-.edge-trigger-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .mini-btn {
   padding: 6px 16px; font-size: 15px; line-height: 1.5;
   background: rgba(0,100,180,0.2); border: 1px solid rgba(0,120,200,0.3);

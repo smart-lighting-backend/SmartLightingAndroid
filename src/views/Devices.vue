@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, ElCascader } from 'element-plus'
 import { Plus, Edit, Delete, Location, Download, Upload, Connection, CircleClose } from '@element-plus/icons-vue'
 import { createDevice, deleteDevice, fetchDeviceList, updateDevice, batchDeviceArea, STATUS_MAP, STATUS_QUERY_MAP } from '../api/devices.js'
+import { fetchDistrictData } from '../api/dashboard.js'
 import { fetchAreaTree } from '../api/area.js'
 import { useUserInfo } from '../composables/useUserInfo.js'
 import LocationPicker from '../components/LocationPicker.vue'
@@ -14,6 +15,7 @@ import { exportDevices } from '../utils/excelTemplate.js'
 const router = useRouter()
 const { hasPerm } = useUserInfo()
 const devices  = ref([])
+const districts = ref([])
 const loading  = ref(false)
 const togglingDeviceId = ref('')
 const search   = ref('')
@@ -136,6 +138,9 @@ async function loadDevices() {
 
 onMounted(() => {
   loadDevices()
+  fetchDistrictData().then(res => {
+    districts.value = res.data || []
+  }).catch(() => {})
   useAutoRefresh(async () => {
     // 静默刷新，不触发表格 loading 遮罩
     try {
@@ -678,6 +683,25 @@ async function batchClearArea() {
       </span>
     </div>
 
+    <!-- 分区设备状态 -->
+    <div v-if="districts.length" class="district-section">
+      <h2 class="section-title">分区设备状态</h2>
+      <div class="district-grid">
+        <div class="district-panel" v-for="d in districts" :key="d.name">
+          <div class="dp-name">{{ d.name }}</div>
+          <div class="dp-stats">
+            <div class="dps-item"><span class="dps-val online">{{ d.online }}</span><span class="dps-lbl">在线</span></div>
+            <div class="dps-item"><span class="dps-val offline">{{ d.offline }}</span><span class="dps-lbl">离线</span></div>
+            <div class="dps-item"><span class="dps-val warn">{{ d.warning }}</span><span class="dps-lbl">告警</span></div>
+            <div class="dps-item"><span class="dps-val disabled">{{ d.disabled }}</span><span class="dps-lbl">停用</span></div>
+          </div>
+          <div class="district-progress">
+            <div class="prog-fill" :style="{ width: (d.online / (d.online+d.offline+d.warning+(d.disabled||0)) * 100) + '%' }"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div v-if="loading" class="loading-state">
       <div class="loading-spinner"></div>
       <span>加载设备列表...</span>
@@ -829,7 +853,7 @@ async function batchClearArea() {
           <ElInput
             v-model.trim="createForm.deviceId"
             :disabled="createDialogMode === 'edit'"
-            placeholder="如 SL-007"
+            placeholder="如 SL_007"
             maxlength="50"
             show-word-limit
           />
@@ -1302,4 +1326,30 @@ async function batchClearArea() {
 .batch-area-hint { font-size: 12px; color: #40566f; margin-top: 12px; }
 .batch-area-dialog :deep(.el-cascader__wrapper) { background: rgba(255,255,255,0.92); }
 .batch-area-dialog :deep(.el-cascader__search-input) { color: #0d1b2d; }
+
+/* ── 分区设备状态 ── */
+.district-section { margin-bottom: 24px; }
+.section-title {
+  font-size: 18px; font-weight: 700; color: #0d1b2d;
+  margin-bottom: 14px;
+  border-left: 4px solid #008de6; padding-left: 10px;
+}
+.district-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.district-panel {
+  background: rgba(255,255,255,0.96);
+  border: 1px solid rgba(0,141,230,0.16);
+  border-radius: 10px; padding: 18px 20px;
+  box-shadow: 0 10px 24px rgba(30,86,130,0.08);
+}
+.dp-name { font-size: 16px; font-weight: 600; color: #0d1b2d; margin-bottom: 12px; }
+.dp-stats { display: flex; gap: 24px; margin-bottom: 12px; }
+.dps-item { display: flex; align-items: center; gap: 6px; }
+.dps-val { font-size: 20px; font-weight: 700; }
+.dps-val.online { color: #15966a; }
+.dps-val.offline { color: #60748a; }
+.dps-val.warn { color: #d97706; }
+.dps-val.disabled { color: #9ba4b0; }
+.dps-lbl { font-size: 12px; color: #60748a; }
+.district-progress { height: 6px; background: rgba(0,80,140,0.12); border-radius: 3px; overflow: hidden; }
+.prog-fill { height: 100%; background: linear-gradient(90deg, #008de6, #10b981); border-radius: 3px; transition: width 0.8s ease; }
 </style>

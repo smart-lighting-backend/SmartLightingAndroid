@@ -10,6 +10,7 @@ sealed class Screen(val route: String) {
     data object DeviceForm : Screen("devices/form/{deviceId}") {
         fun createRoute(deviceId: String = "") = "devices/form/$deviceId"
     }
+    data object BatchImport : Screen("devices/batch-import")
     data object Alarms : Screen("alarms")
     data object AlarmDetail : Screen("alarms/{alarmId}") {
         fun createRoute(alarmId: Long) = "alarms/$alarmId"

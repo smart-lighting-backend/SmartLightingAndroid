@@ -84,6 +84,26 @@ class DeviceRepository @Inject constructor(private val api: ApiService) {
         api.getDevicePerception(deviceId)
     }
 
+    suspend fun batchCreateDevices(devices: List<CreateDeviceRequest>): Result<BatchCreateResult> = apiCall {
+        api.batchCreateDevices(devices)
+    }
+
+    suspend fun batchTurnOn(ids: List<Long>): Result<BatchOperationResult> = apiCall {
+        api.batchTurnOn(BatchDeviceRequest(deviceIds = ids))
+    }
+
+    suspend fun batchTurnOff(ids: List<Long>): Result<BatchOperationResult> = apiCall {
+        api.batchTurnOff(BatchDeviceRequest(deviceIds = ids))
+    }
+
+    suspend fun batchEnable(ids: List<Long>): Result<BatchOperationResult> = apiCall {
+        api.batchEnable(BatchDeviceRequest(deviceIds = ids))
+    }
+
+    suspend fun batchDisable(ids: List<Long>): Result<BatchOperationResult> = apiCall {
+        api.batchDisable(BatchDeviceRequest(deviceIds = ids))
+    }
+
     private suspend fun <T> apiCall(call: suspend () -> ApiResponse<T>): Result<T> {
         return try {
             val response = call()

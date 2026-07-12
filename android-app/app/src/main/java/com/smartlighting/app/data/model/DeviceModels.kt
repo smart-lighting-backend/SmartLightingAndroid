@@ -60,7 +60,8 @@ data class CreateDeviceRequest(
     @Json(name = "status") val status: Int = 1,
     @Json(name = "healthScore") val healthScore: Int = 100,
     @Json(name = "topicPrefix") val topicPrefix: String = "streetlight",
-    @Json(name = "enabled") val enabled: Boolean = true
+    @Json(name = "enabled") val enabled: Boolean = true,
+    @Json(name = "factorySerial") val factorySerial: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -129,3 +130,58 @@ data class ControlHistoryItem(
     @Json(name = "status") val status: String? = null,
     @Json(name = "issuedAt") val issuedAt: String? = null
 )
+
+// ── Batch Operation Models ────────────────────────────────────
+
+@JsonClass(generateAdapter = true)
+data class BatchDeviceRequest(
+    @Json(name = "deviceIds") val deviceIds: List<Long>
+)
+
+@JsonClass(generateAdapter = true)
+data class BatchCreateResult(
+    @Json(name = "total") val total: Int = 0,
+    @Json(name = "success") val success: Int = 0,
+    @Json(name = "failed") val failed: Int = 0,
+    @Json(name = "failedDetails") val failedDetails: List<BatchErrorDetail> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class BatchErrorDetail(
+    @Json(name = "row") val row: Int = 0,
+    @Json(name = "deviceId") val deviceId: String? = null,
+    @Json(name = "reason") val reason: String = ""
+)
+
+@JsonClass(generateAdapter = true)
+data class BatchOperationResult(
+    @Json(name = "total") val total: Int = 0,
+    @Json(name = "success") val success: Int = 0,
+    @Json(name = "failed") val failed: Int = 0,
+    @Json(name = "failedDetails") val failedDetails: List<BatchOpErrorDetail> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class BatchOpErrorDetail(
+    @Json(name = "deviceId") val deviceId: String = "",
+    @Json(name = "reason") val reason: String = ""
+)
+
+/** 客户端解析用：表示一行待导入的设备数据及校验状态 */
+data class ImportRow(
+    val rowNum: Int,
+    val deviceId: String,
+    val name: String = "",
+    val area: String = "",
+    val longitude: String = "",
+    val latitude: String = "",
+    val factorySerial: String = "",
+    val errors: List<String> = emptyList()
+) {
+    val valid: Boolean get() = errors.isEmpty()
+    val location: String? get() {
+        val lng = longitude.toDoubleOrNull()
+        val lat = latitude.toDoubleOrNull()
+        return if (lng != null && lat != null) "$lng,$lat" else null
+    }
+}

@@ -3,7 +3,7 @@ package com.smartlighting.app.util
 import com.smartlighting.app.BuildConfig
 
 object Constants {
-    const val BASE_URL = "http://p62ea58a.natappfree.cc"
+    const val BASE_URL = "http://p7b25aa6.natappfree.cc"
     const val DATASTORE_NAME = "smart_lighting_prefs"
 
     // ── 高德地图 Key ──────────────────────────────────────────

@@ -74,6 +74,22 @@ interface ApiService {
     @DELETE("/api/devices/{deviceId}/manual-lock")
     suspend fun unlockDevice(@Path("deviceId") deviceId: String): retrofit2.Response<Unit>
 
+    // ── Batch Operations ──
+    @POST("/api/devices/batch")
+    suspend fun batchCreateDevices(@Body devices: List<CreateDeviceRequest>): ApiResponse<BatchCreateResult>
+
+    @PUT("/api/devices/batch-turn-on")
+    suspend fun batchTurnOn(@Body request: BatchDeviceRequest): ApiResponse<BatchOperationResult>
+
+    @PUT("/api/devices/batch-turn-off")
+    suspend fun batchTurnOff(@Body request: BatchDeviceRequest): ApiResponse<BatchOperationResult>
+
+    @PUT("/api/devices/batch-enable")
+    suspend fun batchEnable(@Body request: BatchDeviceRequest): ApiResponse<BatchOperationResult>
+
+    @PUT("/api/devices/batch-disable")
+    suspend fun batchDisable(@Body request: BatchDeviceRequest): ApiResponse<BatchOperationResult>
+
     // ── Telemetry ──
     @GET("/api/telemetry/latest/{deviceId}")
     suspend fun getLatestTelemetry(@Path("deviceId") deviceId: String): ApiResponse<LatestTelemetry>

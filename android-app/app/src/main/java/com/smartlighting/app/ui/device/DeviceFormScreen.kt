@@ -37,6 +37,7 @@ fun DeviceFormScreen(
     var area by remember { mutableStateOf("") }
     var lng by remember { mutableStateOf("") }
     var lat by remember { mutableStateOf("") }
+    var factorySerial by remember { mutableStateOf("") }
     var submitting by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var loaded by remember { mutableStateOf(!isEditing) }
@@ -239,6 +240,32 @@ fun DeviceFormScreen(
                 colors = fieldColors(), shape = RoundedCornerShape(8.dp)
             )
 
+            // Factory serial number
+            val fsRemaining = 30 - factorySerial.length
+            val fsCounterColor = when {
+                fsRemaining < 0 -> Red
+                fsRemaining <= 5 -> Amber
+                else -> TextMuted
+            }
+            OutlinedTextField(
+                value = factorySerial,
+                onValueChange = { if (it.length <= 30) factorySerial = it },
+                label = { Text("出厂编号 *") },
+                placeholder = { Text("请输入设备出厂编号", fontSize = 12.sp, color = TextMuted.copy(alpha = 0.5f)) },
+                modifier = Modifier.fillMaxWidth(), singleLine = true,
+                colors = fieldColors(), shape = RoundedCornerShape(8.dp),
+                supportingText = {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("用于生成MQTT鉴权密码", fontSize = 11.sp, color = TextMuted)
+                        Text(
+                            "${factorySerial.length}/30",
+                            fontSize = 11.sp,
+                            color = fsCounterColor
+                        )
+                    }
+                }
+            )
+
             // Longitude / Latitude with map picker
             Text("设备位置", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -288,6 +315,7 @@ fun DeviceFormScreen(
             Button(
                 onClick = {
                     if (devId.isBlank()) { error = "请输入设备编号"; return@Button }
+                    if (!isEditing && factorySerial.isBlank()) { error = "请输入出厂编号"; return@Button }
                     submitting = true
                     if (isEditing) {
                         viewModel.updateDevice(deviceId, name, area, lng, lat) { ok ->
@@ -295,7 +323,7 @@ fun DeviceFormScreen(
                             if (ok) onBack() else error = "保存失败"
                         }
                     } else {
-                        viewModel.createDevice(devId, name, area, lng, lat) { ok ->
+                        viewModel.createDevice(devId, name, area, lng, lat, factorySerial) { ok ->
                             submitting = false
                             if (ok) onBack() else error = "创建失败"
                         }

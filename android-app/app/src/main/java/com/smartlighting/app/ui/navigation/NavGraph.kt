@@ -22,6 +22,7 @@ import com.smartlighting.app.ui.assistant.AssistantScreen
 import com.smartlighting.app.ui.dashboard.DashboardScreen
 import com.smartlighting.app.ui.device.DeviceDetailScreen
 import com.smartlighting.app.ui.device.DeviceFormScreen
+import com.smartlighting.app.ui.device.BatchImportScreen
 import com.smartlighting.app.ui.device.DeviceListScreen
 import com.smartlighting.app.ui.event.EventScreen
 import com.smartlighting.app.ui.login.LoginScreen
@@ -75,6 +76,10 @@ fun AppNavGraph(
         ) { backStackEntry ->
             val devId = backStackEntry.arguments?.getString("deviceId") ?: ""
             DeviceFormScreen(deviceId = devId, onBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.BatchImport.route) {
+            BatchImportScreen(onBack = { navController.popBackStack() })
         }
 
         composable(
@@ -144,6 +149,9 @@ fun MainScreen(rootNavController: NavHostController) {
                     },
                     onEditDevice = { deviceId ->
                         rootNavController.navigate(Screen.DeviceForm.createRoute(deviceId))
+                    },
+                    onBatchImport = {
+                        rootNavController.navigate(Screen.BatchImport.route)
                     }
                 )
             }

@@ -161,6 +161,7 @@ class DeviceViewModel @Inject constructor(
         area: String,
         lng: String = "",
         lat: String = "",
+        factorySerial: String = "",
         onResult: (Boolean) -> Unit
     ) {
         viewModelScope.launch {
@@ -169,7 +170,8 @@ class DeviceViewModel @Inject constructor(
                 deviceId = deviceId,
                 name = name.ifBlank { null },
                 area = area.ifBlank { null },
-                location = location
+                location = location,
+                factorySerial = factorySerial.ifBlank { null }
             )
             repo.createDevice(req).fold(
                 onSuccess = { loadDevices(); onResult(true) },
@@ -226,6 +228,45 @@ class DeviceViewModel @Inject constructor(
         viewModelScope.launch {
             repo.deleteDevice(deviceId)
             loadDevices()
+        }
+    }
+
+    // ── Batch Operations ──
+
+    fun batchCreateDevices(
+        rows: List<ImportRow>,
+        onResult: (Boolean, BatchCreateResult?) -> Unit
+    ) {
+        viewModelScope.launch {
+            val requests = rows.filter { it.valid }.map { row ->
+                CreateDeviceRequest(
+                    deviceId = row.deviceId,
+                    name = row.name.ifBlank { null },
+                    area = row.area.ifBlank { null },
+                    location = row.location,
+                    factorySerial = row.factorySerial.ifBlank { null }
+                )
+            }
+            repo.batchCreateDevices(requests).fold(
+                onSuccess = { loadDevices(); onResult(true, it) },
+                onFailure = { onResult(false, null) }
+            )
+        }
+    }
+
+    fun batchControl(ids: List<Long>, action: String, onResult: (Boolean, BatchOperationResult?) -> Unit) {
+        viewModelScope.launch {
+            val result = when (action) {
+                "ON" -> repo.batchTurnOn(ids)
+                "OFF" -> repo.batchTurnOff(ids)
+                "ENABLE" -> repo.batchEnable(ids)
+                "DISABLE" -> repo.batchDisable(ids)
+                else -> return@launch
+            }
+            result.fold(
+                onSuccess = { loadDevices(); onResult(true, it) },
+                onFailure = { onResult(false, null) }
+            )
         }
     }
 }
