@@ -162,7 +162,7 @@ class DeviceViewModel @Inject constructor(
         lng: String = "",
         lat: String = "",
         factorySerial: String = "",
-        onResult: (Boolean) -> Unit
+        onResult: (Boolean, String?) -> Unit
     ) {
         viewModelScope.launch {
             val location = if (lng.isNotBlank() && lat.isNotBlank()) "$lng,$lat" else null
@@ -174,8 +174,8 @@ class DeviceViewModel @Inject constructor(
                 factorySerial = factorySerial.ifBlank { null }
             )
             repo.createDevice(req).fold(
-                onSuccess = { loadDevices(); onResult(true) },
-                onFailure = { onResult(false) }
+                onSuccess = { loadDevices(); onResult(true, null) },
+                onFailure = { e -> onResult(false, e.message) }
             )
         }
     }
@@ -235,7 +235,7 @@ class DeviceViewModel @Inject constructor(
 
     fun batchCreateDevices(
         rows: List<ImportRow>,
-        onResult: (Boolean, BatchCreateResult?) -> Unit
+        onResult: (Boolean, BatchCreateResult?, String?) -> Unit
     ) {
         viewModelScope.launch {
             val requests = rows.filter { it.valid }.map { row ->
@@ -248,8 +248,8 @@ class DeviceViewModel @Inject constructor(
                 )
             }
             repo.batchCreateDevices(requests).fold(
-                onSuccess = { loadDevices(); onResult(true, it) },
-                onFailure = { onResult(false, null) }
+                onSuccess = { loadDevices(); onResult(true, it, null) },
+                onFailure = { e -> onResult(false, null, e.message) }
             )
         }
     }

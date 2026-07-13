@@ -323,9 +323,9 @@ fun DeviceFormScreen(
                             if (ok) onBack() else error = "保存失败"
                         }
                     } else {
-                        viewModel.createDevice(devId, name, area, lng, lat, factorySerial) { ok ->
+                        viewModel.createDevice(devId, name, area, lng, lat, factorySerial) { ok, errMsg ->
                             submitting = false
-                            if (ok) onBack() else error = "创建失败"
+                            if (ok) onBack() else error = errMsg ?: "创建失败"
                         }
                     }
                 },

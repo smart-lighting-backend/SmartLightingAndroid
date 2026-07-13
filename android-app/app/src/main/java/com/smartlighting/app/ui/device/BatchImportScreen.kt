@@ -127,10 +127,11 @@ fun BatchImportScreen(
                     onBackToUpload = { step = 0 },
                     onImport = {
                         importing = true
-                        viewModel.batchCreateDevices(parseResult.rows) { ok, result ->
+                        viewModel.batchCreateDevices(parseResult.rows) { ok, result, errMsg ->
                             importing = false
                             importSuccess = ok && result != null
                             importResult = result
+                            if (!ok && errMsg != null) parseError = errMsg
                             step = 2
                         }
                     }
