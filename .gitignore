@@ -4,6 +4,12 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+### 敏感文件（绝不能提交！） ###
+*.jks                    # Android 签名密钥
+*.apk                    # 构建产物
+secrets.properties       # 高德 API Key 等真实密钥（仅保留 .example）
+*.keystore
+
 ### IntelliJ IDEA ###
 .idea/modules.xml
 .idea/jarRepositories.xml
