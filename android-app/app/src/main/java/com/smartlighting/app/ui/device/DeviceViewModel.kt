@@ -204,7 +204,7 @@ class DeviceViewModel @Inject constructor(
         viewModelScope.launch {
             // Optimistic update: immediately reflect the new state in UI
             val current = _detailState.value.device
-            if (current != null) {
+            if (current != null && action != "RESTART") {
                 val newLatestData = buildString {
                     append("{")
                     append("\"action\":\"$action\"")
@@ -220,6 +220,13 @@ class DeviceViewModel @Inject constructor(
             }
             // Send command to backend, then silently refresh
             repo.controlDevice(deviceId, action, brightness)
+            loadDeviceDetail(deviceId, silent = true)
+        }
+    }
+
+    fun unlockDevice(deviceId: String) {
+        viewModelScope.launch {
+            repo.unlockDevice(deviceId)
             loadDeviceDetail(deviceId, silent = true)
         }
     }

@@ -29,11 +29,11 @@ fun DeviceDetailScreen(
 ) {
     val state by viewModel.detailState.collectAsState()
 
-    // Initial load (with spinner) + 10s silent auto-refresh
+    // Initial load (with spinner) + 5s silent auto-refresh
     LaunchedEffect(deviceId) {
         viewModel.loadDeviceDetail(deviceId)
         while (true) {
-            delay(10_000)
+            delay(5_000)
             viewModel.loadDeviceDetail(deviceId, silent = true)
         }
     }
@@ -207,6 +207,22 @@ fun DeviceDetailScreen(
                                 ) { Text("关灯") }
                             }
 
+                            Spacer(Modifier.height(8.dp))
+
+                            // Restart + Unlock buttons
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedButton(onClick = { viewModel.controlDevice(deviceId, "RESTART") },
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Amber),
+                                    modifier = Modifier.weight(1f)
+                                ) { Text("重启") }
+                                if (d.controlSource == "MANUAL" || d.manualMode == true) {
+                                    OutlinedButton(onClick = { viewModel.unlockDevice(deviceId) },
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Cyan),
+                                        modifier = Modifier.weight(1f)
+                                    ) { Text("恢复自动") }
+                                }
+                            }
+
                             Spacer(Modifier.height(16.dp))
 
                             // Brightness slider
@@ -259,10 +275,11 @@ fun DeviceDetailScreen(
                                         "ON" -> "开灯"
                                         "OFF" -> "关灯"
                                         "DIMMING" -> "调光"
+                                        "RESTART" -> "重启"
                                         else -> h.action
                                     }
                                     val actionColor = when (h.action) {
-                                        "ON" -> Green; "OFF" -> Red; "DIMMING" -> Cyan; else -> TextPrimary
+                                        "ON" -> Green; "OFF" -> Red; "DIMMING" -> Cyan; "RESTART" -> Amber; else -> TextPrimary
                                     }
                                     val statusLabel = when (h.status) { "SENT" -> "已发送"; "ACKED" -> "已确认"; "FAILED" -> "失败"; else -> h.status ?: "-" }
                                     val statusColor = when (h.status) { "SENT" -> Cyan; "ACKED" -> Green; "FAILED" -> Red; else -> TextMuted }

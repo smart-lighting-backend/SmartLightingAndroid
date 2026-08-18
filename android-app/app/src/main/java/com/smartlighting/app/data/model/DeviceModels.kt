@@ -38,17 +38,28 @@ data class Device(
 
     /** 开关灯状态：true=开灯, false=关灯, null=未知 */
     val lightOn: Boolean?
-        get() = when (parseLatestField(latestData, "action")?.toString()) {
-            "ON" -> true; "OFF" -> false; else -> null
+        get() {
+            /* 模拟设备：action 字段; 真实硬件 BearPi：led_status 字段 */
+            val action = parseLatestField(latestData, "action")?.toString()
+            if (action != null) return when (action) { "ON" -> true; "OFF" -> false; else -> null }
+            val led = parseLatestField(latestData, "led_status")?.toString()
+            if (led != null) return led == "ON"
+            return null
         }
 
     /** 当前亮度 0-100，null 表示未知 */
     val brightness: Int?
         get() = (parseLatestField(latestData, "brightness") as? Number)?.toInt()
 
-    /** 控制来源：MANUAL/AUTO */
+    /** 控制来源：MANUAL/AUTO（兼容 controlSource 和 led_source） */
     val controlSource: String?
-        get() = parseLatestField(latestData, "controlSource")?.toString()
+        get() {
+            val cs = parseLatestField(latestData, "controlSource")?.toString()
+            if (cs != null) return cs
+            val ls = parseLatestField(latestData, "led_source")?.toString()
+            if (ls != null) return ls.uppercase()
+            return null
+        }
 }
 
 @JsonClass(generateAdapter = true)
